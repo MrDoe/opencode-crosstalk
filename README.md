@@ -22,7 +22,7 @@ can allow or deny coordination with a single rule.
 ## Install
 
 ```sh
-git clone https://github.com/you/opencode-crosstalk
+git clone https://github.com/MrDoe/opencode-crosstalk
 cd opencode-crosstalk && npm install
 ```
 
@@ -35,8 +35,10 @@ npm run uninstall  # remove the link again
 
 The global `plugins/` directory is discovered automatically, so this needs no
 config edit, and it activates the plugin for every project and workspace. It
-links rather than copies, so your edits to `src/` are live after a reload.
-Verify with `opencode plugin list`.
+links rather than copies, so your edits to `src/` are live after a reload. The
+host resolves the linked directory through its root `index.ts`, so keep that
+file in place. Verify with `opencode api get /api/plugin` (expect
+`opencode.crosstalk` active); `opencode plugin list` shows it as `local`.
 
 Install into exactly one global root — linking both loads the plugin twice per
 location. `npm run setup` uses `~/.opencode/plugins/`; the root the V2 docs
@@ -73,7 +75,8 @@ to control it rather than enable it — one rule covers all six tools:
 }
 ```
 
-No build step: the entry point is `src/index.ts`, which the host loads directly.
+No build step: the host resolves the plugin directory through the root `index.ts`,
+a thin re-export of `src/index.ts`.
 
 ## Using it
 
@@ -103,6 +106,40 @@ crosstalk_wait { for: "peer_idle", sessionID: "ses_9f2", timeoutSeconds: 120 }
 A message is stored in the recipient's mailbox and, when the session is live,
 injected into its current turn — so the other agent finds out without anyone
 having to poll.
+
+### Drop-in AGENTS.md snippet
+
+Copy this block into a project's `AGENTS.md` to teach its sessions how to
+coordinate without stalling. The `<!-- … -->` markers make it easy to find and
+replace later.
+
+```markdown
+<!-- opencode-crosstalk:begin -->
+## OpenCode Crosstalk
+
+Other OpenCode sessions in this workspace are reachable through the
+`opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
+`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
+Talk to each other, but keep working — only stop for coordination that prevents
+a real collision.
+
+- **Declare once, then keep moving.** `crosstalk_status` sets your role and goal;
+  `crosstalk_peers` shows active sessions and their leases. Work that does not
+  overlap theirs needs no coordination.
+- **Talk before you collide.** If you need something a peer holds, `crosstalk_send`
+  a short ask and continue elsewhere; replies are injected into live turns (use
+  `crosstalk_inbox` to catch up). Never force a claim.
+- **Lease what you are editing now.** `crosstalk_claim` takes an exclusive expiring
+  lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`). `renew` if the
+  work runs long, `release` when done; a refusal names the holder.
+- **Identity is automatic** — never pass a "who am I". Blocking calls are capped by
+  `maxWaitMs` and may return early; that is normal.
+
+Installed globally (`npm run setup` in `/home/christoph/code/opencode-crosstalk`);
+`opencode api get /api/plugin` shows `opencode.crosstalk` active. Disable per
+workspace with `"plugins": ["-opencode.crosstalk"]`; no permission rule is required.
+<!-- opencode-crosstalk:end -->
+```
 
 ## Design notes
 

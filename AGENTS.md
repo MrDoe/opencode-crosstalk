@@ -28,8 +28,8 @@ npm run test:e2e    # spawns a real opencode + real model calls; see below
 - There is **no lint or formatter config** (no eslint/biome/prettier, no
   pre-commit, no CI). `npm run check` is the only automated gate — match the
   surrounding style by hand.
-- The repo is not currently under version control. Don't assume branch, commit,
-  or PR conventions exist.
+- The repo is under version control at `git@github.com:MrDoe/opencode-crosstalk.git`
+  (branch `main`). Keep `npm run check` green before pushing.
 
 ## Layout
 
@@ -221,39 +221,25 @@ never fires.
 <!-- opencode-crosstalk:begin -->
 ## OpenCode Crosstalk
 
-This machine runs the `opencode-crosstalk` plugin (`opencode.crosstalk`): concurrent
-OpenCode sessions in a workspace can see each other, message each other, and take
-exclusive leases on files. It is installed **globally** — every project and workspace
-gets it without a config edit.
+Other OpenCode sessions in this workspace are reachable through the
+`opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
+`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
+Talk to each other, but keep working — only stop for coordination that prevents
+a real collision.
 
-**Install / verify.** `cd /home/christoph/code/opencode-crosstalk && npm run setup`
-links the checkout into `~/.opencode/plugins/` (`npm run uninstall` reverses it). The
-host resolves a plugin directory through a root `index.ts`/`index.js`, so keep
-`/home/christoph/code/opencode-crosstalk/index.ts` in place. Verify with
-`opencode api get /api/plugin` — expect `opencode.crosstalk` in state `active` with a
-`local` source ending in `index.ts`; `opencode plugin list` shows it with
-`VERSION local`. A `failed` state caused by `NpmInstallFailedError … 404` means a
-`plugins` entry names an unpublished npm package — point it at the checkout directory
-instead. Reload is automatic for watched config dirs; `opencode service restart` forces
-it and drops the current session. Don't install it both globally and per project: it
-would load twice. Disable in a workspace with `"plugins": ["-opencode.crosstalk"]`.
+- **Declare once, then keep moving.** `crosstalk_status` sets your role and goal;
+  `crosstalk_peers` shows active sessions and their leases. Work that does not
+  overlap theirs needs no coordination.
+- **Talk before you collide.** If you need something a peer holds, `crosstalk_send`
+  a short ask and continue elsewhere; replies are injected into live turns (use
+  `crosstalk_inbox` to catch up). Never force a claim.
+- **Lease what you are editing now.** `crosstalk_claim` takes an exclusive expiring
+  lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`). `renew` if the
+  work runs long, `release` when done; a refusal names the holder.
+- **Identity is automatic** — never pass a "who am I". Blocking calls are capped by
+  `maxWaitMs` and may return early; that is normal.
 
-**Use.** Six tools: `crosstalk_status`, `crosstalk_peers`, `crosstalk_send`,
-`crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
-
-- **Declare first.** `crosstalk_status` with `role`/`goal`/`workingOn` at the start of a
-  task; `crosstalk_peers` lists who is active and what they have leased.
-- **Lease before you edit.** `crosstalk_claim` (`action: "claim"`, `resources`, `note`,
-  `ttlSeconds`) takes an exclusive expiring lease on files or named resources.
-  `action: "renew"` if the work runs long, `action: "release"` when done. Resources are
-  exact normalized paths — `**` is a literal segment, not a glob. If refused, message
-  the holder or wait for `claim_free`.
-- **Talk instead of retrying.** `crosstalk_send` a `topic` and a concrete ask
-  (`kind: "request"`); read replies with `crosstalk_inbox` (`wait` blocks), or
-  `crosstalk_wait` for `peer_idle` instead of polling.
-- Identity comes from the session automatically — never pass a "who am I" argument.
-  Blocking calls are capped by `maxWaitMs` and may return early; that is normal.
-
-No permission rule is required (the base policy allows the `crosstalk` action). To gate
-it use `{ "action": "crosstalk", "resource": "*", "effect": "ask" }`.
+Installed globally (`npm run setup` in `/home/christoph/code/opencode-crosstalk`);
+`opencode api get /api/plugin` shows `opencode.crosstalk` active. Disable per
+workspace with `"plugins": ["-opencode.crosstalk"]`; no permission rule is required.
 <!-- opencode-crosstalk:end -->
