@@ -1,0 +1,47 @@
+{
+  "name": "opencode-crosstalk",
+  "version": "0.1.0",
+  "description": "OpenCode plugin that lets sessions on the same server see each other, talk to each other, and lease the files they are editing",
+  "type": "module",
+  "license": "MIT",
+  "author": "Christoph Döllinger <christoph@christoph.cx>",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "agents",
+    "coordination",
+    "multi-agent"
+  ],
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./core": "./src/core/mesh.ts"
+  },
+  "files": [
+    "src",
+    "index.ts",
+    "README.md"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "uninstall": "node scripts/setup.mjs uninstall",
+    "test": "node --test test/*.test.ts",
+    "test:e2e": "OPENCODE_E2E=1 node --test test/e2e/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@opencode/plugin": ">=2.0.0"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}

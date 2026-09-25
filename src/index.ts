@@ -1,0 +1,165 @@
+/**
+ * @fileoverview OpenCode plugin entry point.
+ *
+ * `setup` wires four things and returns the cleanup that undoes all of them:
+ *
+ * 1. a `Mesh` (presence registry, mailboxes, claim table) built on the plugin
+ *    location, seeded from a persisted snapshot when one exists;
+ * 2. a subscription to the server event stream, which is the only way a plugin
+ *    learns that other sessions exist — the plugin context has no
+ *    `session.list()`;
+ * 3. the six `crosstalk_*` tools, registered under one namespace and one
+ *    permission action;
+ * 4. a `context` hook that tells the model the channel exists, so the tools get
+ *    used without the user having to ask.
+ *
+ * The OpenCode-specific types are imported through the published package, but
+ * only as types plus `Plugin.define`, keeping the core free of host coupling.
+ */
+
+import { Plugin } from "@opencode/plugin"
+import { parseOptions } from "./config.ts"
+import { systemClock } from "./core/clock.ts"
+import { Mesh } from "./core/mesh.ts"
+import { createSessionDeliverer, type SessionLike } from "./deliverer.ts"
+import { pumpEvents } from "./events.ts"
+import { MeshStore, type StorageLike } from "./storage.ts"
+import { registerTools } from "./tools/index.ts"
+
+/** Plugin identity. Also the `plugins: ["-opencode.crosstalk"]` disable key. */
+export const id = "opencode.crosstalk"
+
+/** Debounce window for snapshot writes triggered by event traffic. */
+const PERSIST_DEBOUNCE_MS = 2_000
+
+/**
+ * Bridge the real session domain to the narrow shape the deliverer needs.
+ * `Session.ID` is a branded string and the metadata index signature is typed
+ * as the server's `JsonValue`; the mesh works in plain strings and plain JSON,
+ * so both are narrowed once, here, instead of throughout the plugin.
+ */
+function toSessionLike(session: Plugin.Context["session"]): SessionLike {
+  return {
+    synthetic: ({ sessionID, text, description, delivery, metadata }) =>
+      session.synthetic({
+        sessionID: sessionID as never,
+        text,
+        ...(description === undefined ? {} : { description }),
+        ...(delivery === undefined ? {} : { delivery }),
+        ...(metadata === undefined ? {} : { metadata: metadata as never }),
+      }),
+  }
+}
+
+function briefing(peers: number, claims: number): string {
+  return [
+    "Other OpenCode sessions can be working in this repository with you.",
+    "Use the crosstalk tools to cooperate rather than collide:",
+    '`crosstalk_status` to declare your role and see peers, `crosstalk_claim` to lease the files you are about to edit',
+    "(it refuses if another session already holds them), `crosstalk_send` to tell a peer what you are doing or ask them to",
+    "stop, and `crosstalk_inbox` to read their replies. Lease before you edit, release when you are done.",
+    `Right now ${peers} other session${peers === 1 ? " is" : "s are"} on this channel` +
+      (claims > 0 ? ` and ${claims} file${claims === 1 ? " is" : "s are"} already leased.` : "."),
+  ].join(" ")
+}
+
+export default Plugin.define({
+  id,
+  async setup(ctx) {
+    const { options, warnings } = parseOptions(ctx.options)
+    for (const warning of warnings) console.warn(`[crosstalk] ${warning}`)
+
+    const projectID = ctx.location.project?.id
+    const directory = ctx.location.directory
+
+    const mesh = new Mesh({
+      options: {
+        scope: options.scope,
+        staleAfterMs: options.staleAfterMs,
+        evictAfterMs: options.evictAfterMs,
+        maxMessages: options.maxMessages,
+        messageTtlMs: options.messageTtlMs,
+        claimTtlMs: options.claimTtlMs,
+        maxWaitMs: options.maxWaitMs,
+        pollMs: options.pollMs,
+      },
+      clock: systemClock,
+      deliverer: createSessionDeliverer(toSessionLike(ctx.session)),
+      defaults: { ...(projectID ? { projectID } : {}), ...(directory ? { directory } : {}) },
+    })
+
+    // `ctx.storage` is JSON-typed; snapshots are plain JSON by construction,
+    // and a round trip guarantees nothing unserializable reaches it.
+    const storage: StorageLike = {
+      get: (key) => ctx.storage.get(key),
+      set: (key, value) => ctx.storage.set(key, JSON.parse(JSON.stringify(value))),
+      remove: (key) => ctx.storage.remove(key),
+      scan: async (query) => {
+        const page = await ctx.storage.scan({ prefix: query.prefix, after: query.after, limit: query.limit })
+        return { entries: page.entries, next: page.next }
+      },
+    }
+    const store = options.persist ? new MeshStore(storage, { key: options.storageKey }) : undefined
+    if (store) {
+      const snapshot = await store.load(projectID)
+      if (snapshot) mesh.restore(snapshot)
+    }
+
+    // Persist after quiet periods: the event stream is chatty and a write per
+    // event would hammer storage for state that is identical.
+    let persistTimer: ReturnType<typeof setTimeout> | undefined
+    const schedulePersist = () => {
+      if (!store || persistTimer) return
+      persistTimer = setTimeout(() => {
+        persistTimer = undefined
+        void store.save(mesh.snapshot(), projectID).catch((error) => {
+          console.warn(`[crosstalk] could not persist mesh state: ${String(error)}`)
+        })
+      }, PERSIST_DEBOUNCE_MS)
+      persistTimer.unref?.()
+    }
+
+    const controller = new AbortController()
+    const streaming = pumpEvents(ctx.event, controller.signal, {
+      onEvent: (event) => {
+        mesh.applyEvent(event)
+        schedulePersist()
+      },
+      onError: (error) => {
+        console.warn(`[crosstalk] event stream: ${String(error)}`)
+      },
+    })
+
+    const toolRegistration = await ctx.tool.transform((editor) => {
+      registerTools(editor, { mesh, options })
+    })
+
+    const briefingRegistration = options.announce
+      ? await ctx.session.hook("context", (event) => {
+          const peers = mesh.peers(event.sessionID).length
+          const claims = mesh.claims.list({ includeExpired: false }).length
+          if (peers === 0 && claims === 0) return
+          event.system.push({ type: "text", text: briefing(peers, claims) })
+        })
+      : undefined
+
+    return async () => {
+      controller.abort()
+      await streaming
+      await briefingRegistration?.dispose()
+      await toolRegistration.dispose()
+      if (persistTimer) clearTimeout(persistTimer)
+      if (store) {
+        await store.save(mesh.snapshot(), projectID).catch(() => {})
+      }
+    }
+  },
+})
+
+export { parseOptions, DEFAULTS } from "./config.ts"
+export { Mesh } from "./core/mesh.ts"
+export { MeshStore } from "./storage.ts"
+export { pumpEvents, asCrosstalkEvent } from "./events.ts"
+export { createSessionDeliverer, renderDelivery } from "./deliverer.ts"
+export { registerTools, toolFactories, NAMESPACE_DESCRIPTION } from "./tools/index.ts"
+export type * from "./types.ts"
