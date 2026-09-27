@@ -123,11 +123,11 @@ Other OpenCode sessions in this workspace are reachable through the
 Talk to each other, but keep working — only stop for coordination that prevents
 a real collision.
 
-- **Declare once, then keep moving.** `crosstalk_status` sets your role and goal;
+- **Declare once - precisely and concisely - then keep moving.** `crosstalk_status` sets your role and goal;
   `crosstalk_peers` shows active sessions and their leases. Work that does not
   overlap theirs needs no coordination.
 - **Talk before you collide.** If you need something a peer holds, `crosstalk_send`
-  a short ask and continue elsewhere; replies are injected into live turns (use
+  a short precise ask and continue elsewhere; replies are injected into live turns (use
   `crosstalk_inbox` to catch up). Never force a claim.
 - **Lease what you are editing now.** `crosstalk_claim` takes an exclusive expiring
   lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`). `renew` if the
@@ -135,9 +135,7 @@ a real collision.
 - **Identity is automatic** — never pass a "who am I". Blocking calls are capped by
   `maxWaitMs` and may return early; that is normal.
 
-Installed globally (`npm run setup` in `/home/christoph/code/opencode-crosstalk`);
-`opencode api get /api/plugin` shows `opencode.crosstalk` active. Disable per
-workspace with `"plugins": ["-opencode.crosstalk"]`; no permission rule is required.
+Installed globally - `opencode api get /api/plugin` shows if `opencode.crosstalk` is active.
 <!-- opencode-crosstalk:end -->
 ```
 
