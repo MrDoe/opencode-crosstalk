@@ -26,7 +26,7 @@ git clone https://github.com/MrDoe/opencode-crosstalk
 cd opencode-crosstalk && npm install
 ```
 
-### Every project on this machine
+### Every project on your machine
 
 ```sh
 npm run setup      # symlink this checkout into ~/.opencode/plugins/crosstalk
@@ -45,7 +45,7 @@ location. `npm run setup` uses `~/.opencode/plugins/`; the root the V2 docs
 name, `<config>/plugins/` (`~/.config/opencode/plugins/`), is honored as well.
 Set `CROSSTALK_PLUGINS_DIR` to target another directory.
 
-### One project
+### One specific project
 
 Point a project at it:
 
