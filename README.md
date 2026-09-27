@@ -120,7 +120,7 @@ replace later.
 Other OpenCode sessions in this workspace are reachable through the
 `opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
 `crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
-Talk to each other, but keep working — only stop for coordination that prevents
+Talk to each other briefly, but keep working — only stop for coordination that prevents
 a real collision.
 
 - **Declare once - precisely and concisely - then keep moving.** `crosstalk_status` sets your role and goal;
