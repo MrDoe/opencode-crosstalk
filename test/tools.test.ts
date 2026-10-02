@@ -131,6 +131,71 @@ test("status rejects an over-long role instead of truncating it", async () => {
   assert.match(output, /^crosstalk: "role" is 65 characters; the limit is 64$/)
 })
 
+test("status sets a human name and shows it in the header and peer list", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ name: "George" }, "ses_peer")
+
+  const output = await h.status({ name: "Alex", role: "reviewer" })
+  assert.match(output, /you are ses_self \(Alex\)/)
+  assert.match(output, /- ses_peer {2}\(George\) {2}/)
+})
+
+test("status refuses a name another session already took", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ name: "George" }, "ses_peer")
+
+  const output = await h.status({ name: "george", role: "reviewer" })
+  assert.match(output, /the name "george" is already used by ses_peer/)
+  assert.doesNotMatch(output, /role: reviewer/, "nothing is applied on a name conflict")
+})
+
+test("status rejects a name with unsupported characters", async () => {
+  const h = harness()
+  const output = await h.status({ name: "George!" })
+  assert.match(output, /^crosstalk: "name" must start with a letter/)
+})
+
+test("send addresses a peer by name", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ name: "Alexandra" }, "ses_peer")
+
+  const output = await h.send({ to: "alexandra", text: "review this" })
+  assert.match(output, /signalled 1 session/)
+  assert.match(output, /✓ ses_peer/)
+})
+
+test("peers lists an unknown-location peer as not addressable", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent({ type: "session.status", data: { sessionID: "ses_unknown", status: { type: "busy" } } })
+
+  const output = await h.peers({})
+  assert.match(output, /ses_unknown/)
+  assert.match(output, /location unknown — not addressable/)
+})
+
+test("send refuses a peer outside the project scope", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_elsewhere", { projectID: "proj-9" }))
+
+  const output = await h.send({ to: "ses_elsewhere", text: "hi" })
+  assert.match(output, /- ses_elsewhere: outside the project scope/)
+})
+
+test("wait refuses a peer outside the project scope", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_elsewhere", { projectID: "proj-9" }))
+
+  const output = await h.wait({ for: "peer_idle", sessionID: "ses_elsewhere", timeoutSeconds: 0 })
+  assert.match(output, /is outside the project scope/)
+})
+
 // ── crosstalk_peers ──────────────────────────────────────────────────────────
 
 test("peers lists others and excludes the caller", async () => {

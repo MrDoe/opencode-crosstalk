@@ -112,6 +112,17 @@ never fires.
   them inward.
 - **Mailboxes are intentionally not persisted.** Peers and leases survive a
   reload via `ctx.storage`; messages do not. Don't "fix" this.
+- **Human names are declared, unique, and optional.** `crosstalk_status
+  { name }` gives a session a nickname so the user can address it ("tell
+  George…"); it lives in `Declared` and travels on messages as `fromName`.
+  Uniqueness is enforced case-insensitively among the *visible* peers, and a
+  taken name is refused without touching the rest of the declaration.
+- **Communication is walled to provably same-project sessions.** Listing is
+  permissive (unknown-location peers still show), but sends, role/`all`
+  broadcasts, `crosstalk_wait`, and injection retries resolve through
+  `strict` filters that require a provable project (or directory) match —
+  `#inScope` in `src/core/mesh.ts` is the single choke point. Keep it that
+  way: don't widen a listing without leaving the wall intact.
 - **Claim keys are exact normalized strings — no glob expansion.** The
   `crosstalk_claim` JSON Schema advertises `src/auth/**` as an example, but
   `normalizeResource` treats `**` as an ordinary path segment, so that string
@@ -224,20 +235,25 @@ never fires.
 Other OpenCode sessions in this workspace are reachable through the
 `opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
 `crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
-Talk to each other, but keep working — only stop for coordination that prevents
-a real collision.
+Write in **English only** and keep everything token-tight: one short sentence
+per status, message, or claim note (who, what, where) — no reports, no
+summaries, no pleasantries. Keep working; only stop for coordination that
+prevents a real collision.
 
-- **Declare once, then keep moving.** `crosstalk_status` sets your role and goal;
-  `crosstalk_peers` shows active sessions and their leases. Work that does not
-  overlap theirs needs no coordination.
-- **Talk before you collide.** If you need something a peer holds, `crosstalk_send`
-  a short ask and continue elsewhere; replies are injected into live turns (use
+- **Declare once — briefly — then keep moving.** `crosstalk_status` sets a unique
+  human name (so the user can say "tell George…" and peers can address you), your
+  role, and a goal of a few words; `crosstalk_peers` shows active sessions and
+  their leases. Work that does not overlap theirs needs no coordination.
+- **Talk before you collide — as a notice, not an essay.** If you need something a
+  peer holds, `crosstalk_send` one short precise sentence (`to: "George"` or a
+  session id) and continue elsewhere; replies are injected into live turns (use
   `crosstalk_inbox` to catch up). Never force a claim.
-- **Lease what you are editing now.** `crosstalk_claim` takes an exclusive expiring
-  lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`). `renew` if the
-  work runs long, `release` when done; a refusal names the holder.
-- **Identity is automatic** — never pass a "who am I". Blocking calls are capped by
-  `maxWaitMs` and may return early; that is normal.
+- **Lease what you are editing now.** `crosstalk_claim` takes an exclusive
+  expiring lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`);
+  keep the note to a few words. `renew` if the work runs long, `release` when
+  done; a refusal names the holder.
+- **Only sessions in this project are reachable** — peers marked "not addressable"
+  (location unknown or a different project) cannot receive mail, so do not try.
 
 Installed globally (`npm run setup` in `/home/christoph/code/opencode-crosstalk`);
 `opencode api get /api/plugin` shows `opencode.crosstalk` active. Disable per

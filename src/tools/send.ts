@@ -12,13 +12,15 @@ export function sendTool(deps: ToolDeps): CrosstalkToolInfo {
     description: [
       "Send a message to another OpenCode session on this channel. The message is stored in the",
       "recipient's mailbox and, when possible, injected into their running session so they see it",
-      "without waiting. Address it to a sessionID, to everyone with a declared role, or to all peers.",
+      "without waiting. Address it with a session id or a peer's declared human name (crosstalk_peers",
+      "shows both), to everyone with a declared role, or to all peers. Only sessions in this project",
+      "are reachable — peers marked \"not addressable\" are refused.",
       "Give one reason per message and say what you need back; the recipient replies with crosstalk_send.",
     ].join(" "),
     input: jsonSchema({
       type: "object",
       properties: {
-        to: { type: "string", description: "Session ID of the recipient (see crosstalk_peers)" },
+        to: { type: "string", description: "Session ID or declared human name of the recipient (see crosstalk_peers)" },
         role: { type: "string", description: "Send to every peer that declared this role" },
         all: { type: "boolean", description: "Send to every peer on this channel" },
         text: { type: "string", description: "The message body. Be specific about what you need." },
@@ -51,7 +53,7 @@ export function sendTool(deps: ToolDeps): CrosstalkToolInfo {
 
         // `all` defaults to false rather than undefined, so test the values.
         if (!to && !role && !all) {
-          return 'crosstalk: give one of "to" (session id), "role", or "all": true'
+          return 'crosstalk: give one of "to" (session id or name), "role", or "all": true'
         }
 
         const outcome = await deps.mesh.send(

@@ -13,6 +13,12 @@ export type Scope = "project" | "location" | "server"
 
 /** What a session told the mesh about itself through `crosstalk_status`. */
 export interface Declared {
+  /**
+   * A unique human name chosen by the session, so the user can say "tell
+   * George…" and peers can address it in `crosstalk_send`. Optional; the
+   * session id stays the authoritative identity.
+   */
+  name?: string
   role?: string
   goal?: string
   workingOn?: string[]
@@ -44,6 +50,12 @@ export interface PeerView extends Peer {
   stale: boolean
   unread: number
   claims: string[]
+  /**
+   * Provably within the configured communication scope. Only addressable
+   * peers can be messaged or awaited; the rest are listed for visibility but
+   * marked "not addressable".
+   */
+  addressable: boolean
 }
 
 export type MessageKind = "message" | "status" | "request" | "answer" | "system"
@@ -55,6 +67,8 @@ export interface CrosstalkMessage {
   id: string
   seq: number
   from: string
+  /** The sender's declared human name, stamped at send time. */
+  fromName?: string
   fromRole?: string
   to: string
   text: string

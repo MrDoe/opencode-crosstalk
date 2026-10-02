@@ -34,13 +34,14 @@ test("ensureSelf registers a session the stream never announced", () => {
 test("declare merges, leaving unmentioned fields alone, and refreshes activity", async () => {
   const { mesh, clock } = createTestMesh()
   mesh.applyEvent(createdEvent("ses_self"))
-  mesh.declare("ses_self", { role: "reviewer", goal: "audit auth" })
+  mesh.declare("ses_self", { name: "George", role: "reviewer", goal: "audit auth" })
   clock.advance(60_000)
 
   const merged = mesh.declare("ses_self", { goal: "audit auth + sessions" })
-  assert.equal(merged.declared?.role, "reviewer", "role survives a partial update")
-  assert.equal(merged.declared?.goal, "audit auth + sessions")
-  assert.equal(merged.lastSeen, clock.now(), "declaring counts as activity")
+  assert.equal(merged.view.declared?.name, "George", "the name survives a partial update")
+  assert.equal(merged.view.declared?.role, "reviewer", "role survives a partial update")
+  assert.equal(merged.view.declared?.goal, "audit auth + sessions")
+  assert.equal(merged.view.lastSeen, clock.now(), "declaring counts as activity")
 })
 
 test("send to a known peer delivers and records in their mailbox", async () => {
@@ -84,6 +85,116 @@ test("send resolves a declared role, case-insensitively", async () => {
     outcome.recipients.map((r) => r.sessionID),
     ["ses_a"],
   )
+})
+
+test("declare accepts a unique human name and refuses a taken one", () => {
+  const { mesh } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_self"))
+  mesh.applyEvent(createdEvent("ses_peer"))
+
+  const first = mesh.declare("ses_self", { name: "George", role: "reviewer" })
+  assert.equal(first.nameConflict, undefined)
+  assert.equal(first.view.declared?.name, "George")
+
+  // Case-insensitive uniqueness; the conflict names the holder and changes nothing.
+  const refused = mesh.declare("ses_peer", { name: "george", role: "tester" })
+  assert.deepEqual(refused.nameConflict, { name: "george", holder: "ses_self" })
+  assert.equal(refused.view.declared?.name, undefined, "the conflicting name is not applied")
+  assert.equal(refused.view.declared?.role, undefined, "the rest of the declaration is not applied either")
+
+  // Redeclaring the same name is not a conflict.
+  assert.equal(mesh.declare("ses_self", { name: "George" }).nameConflict, undefined)
+})
+
+test("send addresses a peer by declared name, case-insensitively", async () => {
+  const { mesh, deliverer } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_self"))
+  mesh.applyEvent(createdEvent("ses_a"))
+  mesh.declare("ses_a", { name: "Alexandra" })
+
+  const outcome = await mesh.send("ses_self", { to: "alexandra", text: "look at this" })
+  assert.deepEqual(outcome.recipients.map((r) => r.sessionID), ["ses_a"])
+  assert.equal(deliverer.calls.length, 1)
+})
+
+test("send refuses a name nobody declared", async () => {
+  const { mesh, deliverer } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_self"))
+  mesh.applyEvent(createdEvent("ses_a"))
+  mesh.declare("ses_a", { name: "Alex" })
+
+  const outcome = await mesh.send("ses_self", { to: "Bob", text: "x" })
+  assert.match(outcome.skipped[0]?.reason ?? "", /session unknown/)
+  assert.deepEqual(outcome.recipients, [])
+  assert.equal(deliverer.calls.length, 0, "no message is recorded for an unresolvable name")
+})
+
+test("a message carries the sender's name", async () => {
+  const { mesh, deliverer } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_self"))
+  mesh.applyEvent(createdEvent("ses_peer"))
+  mesh.declare("ses_self", { name: "George" })
+
+  await mesh.send("ses_self", { to: "ses_peer", text: "hi" })
+  assert.equal(deliverer.calls[0]?.fromName, "George")
+  assert.equal(mesh.mailbox.list("ses_peer")[0]?.fromName, "George")
+})
+
+test("a peer with an unknown project is listed but not addressable", async () => {
+  const { mesh } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_self"))
+  mesh.applyEvent(event("session.status", { sessionID: "ses_unknown", status: { type: "busy" } }))
+
+  const peers = mesh.peers("ses_self")
+  assert.deepEqual(peers.map((p) => p.sessionID), ["ses_unknown"], "listing still over-reports")
+  assert.equal(peers[0]?.addressable, false, "the communication wall excludes unknown locations")
+
+  const outcome = await mesh.send("ses_self", { to: "ses_unknown", text: "x" })
+  assert.match(outcome.skipped[0]?.reason ?? "", /outside the project scope/)
+  assert.deepEqual(outcome.recipients, [])
+})
+
+test("all and role sends skip peers with an unknown project", async () => {
+  const { mesh } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_self"))
+  mesh.applyEvent(createdEvent("ses_a"))
+  mesh.applyEvent(createdEvent("ses_b"))
+  mesh.applyEvent(event("session.status", { sessionID: "ses_unknown", status: { type: "busy" } }))
+  mesh.declare("ses_unknown", { role: "tester" })
+
+  const all = await mesh.send("ses_self", { all: true, text: "heads up" })
+  assert.deepEqual(all.recipients.map((r) => r.sessionID).sort(), ["ses_a", "ses_b"])
+
+  const byRole = await mesh.send("ses_self", { role: "tester", text: "x" })
+  assert.deepEqual(byRole.recipients, [], "an unknown-location role holder is not addressable")
+  assert.match(byRole.skipped[0]?.reason ?? "", /no peer declared/)
+})
+
+test("waitForPeerIdle refuses a target outside the project scope", async () => {
+  const { mesh } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_self"))
+  mesh.applyEvent(createdEvent("ses_elsewhere", { projectID: "proj-9" }))
+
+  const result = await mesh.waitForPeerIdle("ses_self", "ses_elsewhere", 5_000)
+  assert.equal(result.reason, "outside")
+  assert.equal(result.elapsedMs, 0, "the refusal is immediate, not a timeout")
+})
+
+test("a queued injection is not delivered to a session that moved out of the project", async () => {
+  const { mesh, deliverer } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_sender"))
+  mesh.applyEvent(createdEvent("ses_peer"))
+  deliverer.failFor.add("ses_peer")
+  await mesh.send("ses_sender", { to: "ses_peer", text: "moved away" })
+  assert.equal(mesh.pendingInjectionCount("ses_peer"), 1)
+
+  mesh.applyEvent(
+    event("session.moved", { sessionID: "ses_peer", location: { directory: "/elsewhere" }, projectID: "proj-9" }),
+  )
+  const callsBefore = deliverer.calls.length
+  assert.equal(await mesh.flushPendingInjection("ses_peer"), 0)
+  assert.equal(deliverer.calls.length, callsBefore, "no injection crosses the wall")
+  assert.equal(mesh.pendingInjectionCount("ses_peer"), 1, "the message is held, not dropped")
 })
 
 test("send rejects unusable targets with a reason instead of guessing", async () => {

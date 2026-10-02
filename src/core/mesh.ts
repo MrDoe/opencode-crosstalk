@@ -98,7 +98,7 @@ export interface ClaimResult {
 }
 
 export interface PeerIdleResult {
-  reason: "done" | "timeout" | "aborted" | "gone"
+  reason: "done" | "timeout" | "aborted" | "gone" | "outside"
   elapsedMs: number
   status?: Peer["status"]
 }
@@ -107,6 +107,15 @@ export interface ClaimFreeResult {
   reason: "done" | "timeout" | "aborted"
   elapsedMs: number
   holder?: string
+}
+
+export interface DeclareResult {
+  view: PeerView
+  /**
+   * The requested name is already used by another visible session; nothing was
+   * changed. `holder` is the session that owns the name.
+   */
+  nameConflict?: { name: string; holder: string }
 }
 
 export const SNAPSHOT_VERSION = 1
@@ -198,6 +207,7 @@ export class Mesh {
           isSelf: peer.sessionID === selfID,
           unread: this.mailbox.unreadCount(peer.sessionID),
           claims: this.claims.heldBy(peer.sessionID),
+          addressable: this.#inScope(selfID, peer),
         },
         now,
       ),
@@ -208,17 +218,25 @@ export class Mesh {
     const self = this.ensureSelf(selfID)
     return this.registry.view(
       self,
-      { isSelf: true, unread: this.mailbox.unreadCount(selfID), claims: this.claims.heldBy(selfID) },
+      { isSelf: true, unread: this.mailbox.unreadCount(selfID), claims: this.claims.heldBy(selfID), addressable: true },
       this.#clock.now(),
     )
   }
 
   /** Record what a session says it is doing. Returns the updated self view. */
-  declare(sessionID: string, declared: Declared): PeerView {
+  declare(sessionID: string, declared: Declared): DeclareResult {
     const id = sessionIDOrThrow(sessionID)
     const peer = this.ensureSelf(id)
+    // A name is a nickname, not identity: it must be unique among the peers
+    // the session can see, and a taken name is refused without touching the
+    // rest of the declaration.
+    if (declared.name !== undefined && declared.name !== peer.declared?.name) {
+      const holder = this.#nameHolder(declared.name, id)
+      if (holder) return { view: this.view(id), nameConflict: { name: declared.name, holder } }
+    }
     const previous = peer.declared
     const merged: Declared = {
+      name: declared.name ?? previous?.name,
       role: declared.role ?? previous?.role,
       goal: declared.goal ?? previous?.goal,
       note: declared.note ?? previous?.note,
@@ -227,7 +245,17 @@ export class Mesh {
     }
     peer.declared = merged
     peer.lastSeen = this.#clock.now()
-    return this.view(id)
+    return { view: this.view(id) }
+  }
+
+  /** The visible session that already declared `name`, if any. */
+  #nameHolder(name: string, selfID: string): string | undefined {
+    const wanted = name.toLowerCase()
+    for (const peer of this.registry.list(this.#filter(selfID))) {
+      if (peer.sessionID === selfID) continue
+      if (peer.declared?.name?.toLowerCase() === wanted) return peer.sessionID
+    }
+    return undefined
   }
 
   /**
@@ -248,6 +276,7 @@ export class Mesh {
 
     const messages = this.mailbox.send({
       from: selfID,
+      ...(sender.declared?.name ? { fromName: sender.declared.name } : {}),
       ...(sender.declared?.role ? { fromRole: sender.declared.role } : {}),
       to: targets.recipients,
       text: input.text,
@@ -266,6 +295,13 @@ export class Mesh {
       const peer = this.registry.get(message.to)
       if (!peer) {
         recipients.push({ sessionID: message.to, delivered: false, reason: "session not known to the mesh" })
+        continue
+      }
+      // Defense in depth: the targets were resolved inside the wall, but a
+      // session whose location changed between resolution and delivery must
+      // not receive mail across it.
+      if (!this.#inScope(selfID, peer)) {
+        recipients.push({ sessionID: message.to, delivered: false, reason: `outside the ${this.options.scope} scope` })
         continue
       }
       // `session.synthetic` on a foreign location may throw; the mailbox copy
@@ -297,7 +333,15 @@ export class Mesh {
 
     for (const message of queue) {
       if (message.created < cutoff) continue
-      if (signal?.aborted || !this.registry.get(message.to)) {
+      const peer = this.registry.get(message.to)
+      if (signal?.aborted || !peer) {
+        remaining.push(message)
+        continue
+      }
+      // The wall holds on retries too: a session that moved out of this
+      // location's project must not receive cross-project mail. The message
+      // stays queued in case the record catches up; it can never be injected.
+      if (!this.#deliverable(peer)) {
         remaining.push(message)
         continue
       }
@@ -309,6 +353,22 @@ export class Mesh {
     if (remaining.length === 0) this.#pendingInjection.delete(sessionID)
     else this.#pendingInjection.set(sessionID, remaining)
     return delivered
+  }
+
+  /**
+   * A queued injection may only reach a session that is still provably inside
+   * this location's scope. Unknown locations pass (they were in scope when the
+   * message was queued, and an event may simply be missing); a provably
+   * different project or directory is refused.
+   */
+  #deliverable(target: Peer): boolean {
+    if (this.options.scope === "server") return true
+    if (this.options.scope === "project") {
+      const selfProject = this.#defaults.projectID
+      return selfProject === undefined || target.projectID === undefined || target.projectID === selfProject
+    }
+    const selfDirectory = this.#defaults.directory
+    return selfDirectory === undefined || target.directory === undefined || target.directory === selfDirectory
   }
 
   /** Messages still waiting to be injected into a session's live turn. */
@@ -328,7 +388,12 @@ export class Mesh {
   #resolveTargets(selfID: string, input: SendInput): { recipients: string[]; skipped: SendOutcome["skipped"] } {
     const skipped: SendOutcome["skipped"] = []
     if (input.all) {
-      return { recipients: this.registry.list(this.#filter(selfID)).map((p) => p.sessionID), skipped }
+      // `all` reaches every peer inside the communication wall; a session
+      // whose project cannot be proven is never on the distribution list.
+      return {
+        recipients: this.registry.list(this.#filter(selfID, { strict: true })).map((p) => p.sessionID),
+        skipped,
+      }
     }
     if (input.to) {
       const target = input.to.trim()
@@ -340,20 +405,32 @@ export class Mesh {
         skipped.push({ target, reason: "that is you" })
         return { recipients: [], skipped }
       }
-      if (!this.registry.get(target)) {
-        skipped.push({ target, reason: "session unknown; check crosstalk_peers" })
+      if (this.registry.get(target)) {
+        if (!this.#visible(selfID, target)) {
+          skipped.push({ target, reason: `outside the ${this.options.scope} scope` })
+          return { recipients: [], skipped }
+        }
+        return { recipients: [target], skipped }
+      }
+      // Not a session id: try a declared human name, case-insensitively,
+      // among addressable peers only — names never cross the wall.
+      const wanted = target.toLowerCase()
+      const byName = this.registry
+        .list(this.#filter(selfID, { strict: true }))
+        .filter((peer) => peer.declared?.name?.toLowerCase() === wanted)
+        .map((peer) => peer.sessionID)
+      if (byName.length === 1) return { recipients: [byName[0] as string], skipped }
+      if (byName.length > 1) {
+        skipped.push({ target, reason: `"${target}" is claimed by ${byName.length} sessions; use a session id` })
         return { recipients: [], skipped }
       }
-      if (!this.#visible(selfID, target)) {
-        skipped.push({ target, reason: `outside the ${this.options.scope} scope` })
-        return { recipients: [], skipped }
-      }
-      return { recipients: [target], skipped }
+      skipped.push({ target, reason: "session unknown; check crosstalk_peers for session ids and names" })
+      return { recipients: [], skipped }
     }
     if (input.role) {
       const wanted = input.role.trim().toLowerCase()
       const matches = this.registry
-        .list(this.#filter(selfID))
+        .list(this.#filter(selfID, { strict: true }))
         .filter((peer) => peer.declared?.role?.toLowerCase() === wanted)
         .map((peer) => peer.sessionID)
       if (matches.length === 0) skipped.push({ target: `role:${input.role}`, reason: "no peer declared that role" })
@@ -363,8 +440,27 @@ export class Mesh {
     return { recipients: [], skipped }
   }
 
+  /**
+   * True when `target` is a peer this session may address: provably within the
+   * configured scope. An unknown location is a refusal, not a maybe.
+   */
   #visible(selfID: string, target: string): boolean {
-    return this.registry.list(this.#filter(selfID)).some((peer) => peer.sessionID === target)
+    const peer = this.registry.get(target)
+    return peer !== undefined && this.#inScope(selfID, peer)
+  }
+
+  /**
+   * The communication wall. `scope: "server"` has no wall; otherwise the peer
+   * must carry a location that provably equals the caller's — a session whose
+   * project (or directory) is unknown cannot be messaged or waited on.
+   */
+  #inScope(selfID: string, peer: Peer): boolean {
+    const scope = this.options.scope
+    if (peer.sessionID === selfID || scope === "server") return true
+    const projectID = this.registry.get(selfID)?.projectID ?? this.#defaults.projectID
+    if (scope === "project") return projectID !== undefined && peer.projectID === projectID
+    const directory = this.registry.get(selfID)?.directory ?? this.#defaults.directory
+    return directory !== undefined && peer.directory === directory
   }
 
   /** Read, optionally block for, and optionally ack the caller's mail. */
@@ -471,9 +567,13 @@ export class Mesh {
     const limit = Math.min(Math.max(0, timeoutMs), this.options.maxWaitMs)
     if (target === selfID) return { reason: "gone", elapsedMs: 0 }
 
+    const peer = this.registry.get(target)
+    if (!peer) return { reason: "gone", elapsedMs: 0 }
+    // Waiting on a peer is communication: the wall applies. A session outside
+    // the scope resolves at once instead of blocking until the timeout.
+    if (!this.#inScope(selfID, peer)) return { reason: "outside", elapsedMs: 0, status: peer.status }
+
     for (;;) {
-      const peer = this.registry.get(target)
-      if (!peer) return { reason: "gone", elapsedMs: this.#clock.now() - start }
       if (peer.status === "idle" || peer.status === "unknown") {
         return { reason: "done", elapsedMs: this.#clock.now() - start, status: peer.status }
       }
@@ -482,6 +582,12 @@ export class Mesh {
       }
       await delay(this.options.pollMs, signal)
       if (signal?.aborted) return { reason: "aborted", elapsedMs: this.#clock.now() - start }
+      const current = this.registry.get(target)
+      if (!current) return { reason: "gone", elapsedMs: this.#clock.now() - start }
+      if (!this.#inScope(selfID, current)) return { reason: "outside", elapsedMs: this.#clock.now() - start, status: current.status }
+      if (current.status === "idle" || current.status === "unknown") {
+        return { reason: "done", elapsedMs: this.#clock.now() - start, status: current.status }
+      }
     }
   }
 

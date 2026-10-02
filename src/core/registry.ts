@@ -38,6 +38,13 @@ export interface ListFilter {
   status?: "running" | "idle" | "all"
   includeSelf?: boolean
   limit?: number
+  /**
+   * Communication wall: exclude peers whose location cannot be proven within
+   * the scope. Plain listings keep over-reporting unknown peers; sends, waits,
+   * and injection retries pass `strict: true` so a session whose project is
+   * unknown can never be addressed.
+   */
+  strict?: boolean
 }
 
 const STATUS_RANK: Readonly<Record<PeerStatus, number>> = { running: 0, idle: 1, unknown: 2 }
@@ -238,12 +245,15 @@ export class Registry {
       const isSelf = filter.selfID !== undefined && peer.sessionID === filter.selfID
       if (isSelf && !filter.includeSelf) continue
       if (scope === "project" && selfProject !== undefined) {
-        // Unknown-project peers stay visible: better to over-report than to hide
-        // a session that is genuinely working the same repository.
+        // Unknown-project peers stay visible in listings: better to over-report
+        // than to hide a session that is genuinely working the same repository.
+        // Under a strict filter (communication) they are excluded instead.
         if (peer.projectID !== undefined && peer.projectID !== selfProject) continue
+        if (filter.strict && peer.projectID === undefined) continue
       }
       if (scope === "location" && selfDirectory !== undefined) {
         if (peer.directory !== undefined && peer.directory !== selfDirectory) continue
+        if (filter.strict && peer.directory === undefined) continue
       }
       // Asking for yourself is asking for yourself: a status filter is about
       // peers, so it should not silently drop the caller.
@@ -265,13 +275,18 @@ export class Registry {
   }
 
   /** Peer plus mesh-derived fields, as tools hand them to agents. */
-  view(peer: Peer, extras: { isSelf: boolean; unread: number; claims: string[] }, now = this.#now()): PeerView {
+  view(
+    peer: Peer,
+    extras: { isSelf: boolean; unread: number; claims: string[]; addressable: boolean },
+    now = this.#now(),
+  ): PeerView {
     return {
       ...peer,
       isSelf: extras.isSelf,
       stale: this.isStale(peer, now),
       unread: extras.unread,
       claims: extras.claims,
+      addressable: extras.addressable,
     }
   }
 

@@ -54,10 +54,15 @@ function toSessionLike(session: Plugin.Context["session"]): SessionLike {
 function briefing(peers: number, claims: number): string {
   return [
     "Other OpenCode sessions can be working in this repository with you.",
-    "Use the crosstalk tools to cooperate rather than collide:",
-    '`crosstalk_status` to declare your role and see peers, `crosstalk_claim` to lease the files you are about to edit',
-    "(it refuses if another session already holds them), `crosstalk_send` to tell a peer what you are doing or ask them to",
-    "stop, and `crosstalk_inbox` to read their replies. Lease before you edit, release when you are done.",
+    "Coordinate in English only and keep it token-tight: one short sentence per status, message, or claim.",
+    "Declare once — briefly — then keep moving: `crosstalk_status` sets a unique human name (so the user can say",
+    '"tell George…" and peers can address you) plus your role and a goal of a few words; `crosstalk_peers` shows',
+    "active sessions and their leases, and work that does not overlap theirs needs no coordination.",
+    "Talk before you collide — as a notice, not an essay: `crosstalk_send` one short precise sentence addressed by",
+    "session id or name and continue elsewhere; replies are injected into live turns (`crosstalk_inbox` to catch up).",
+    "Never force a claim. Lease what you are editing now with `crosstalk_claim` (it refuses if another session already",
+    "holds it), renew if the work runs long, release when done. Only sessions in this project are reachable — peers",
+    "marked not addressable cannot receive mail.",
     `Right now ${peers} other session${peers === 1 ? " is" : "s are"} on this channel` +
       (claims > 0 ? ` and ${claims} file${claims === 1 ? " is" : "s are"} already leased.` : "."),
   ].join(" ")

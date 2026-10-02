@@ -27,8 +27,9 @@ export function ellipsis(value: string, max: number): string {
   return `${flat.slice(0, Math.max(0, max - 1))}…`
 }
 
-function peerLine(peer: PeerView, now: number): string {
+function peerLine(peer: PeerView, now: number, scope: Scope): string {
   const parts = [`- ${peer.sessionID}`]
+  if (peer.declared?.name) parts.push(`(${ellipsis(peer.declared.name, 32)})`)
   if (peer.isSelf) parts.push("(you)")
   parts.push(peer.stale ? `${peer.status}?` : peer.status)
   if (peer.declared?.role) parts.push(`role=${ellipsis(peer.declared.role, 24)}`)
@@ -37,7 +38,15 @@ function peerLine(peer: PeerView, now: number): string {
   parts.push(`active ${relativeAge(peer.lastSeen, now)} ago`)
   if (peer.unread > 0) parts.push(`unread ${peer.unread}`)
   if (peer.claims.length > 0) parts.push(`claims ${peer.claims.join(", ")}`)
+  if (!peer.addressable) parts.push(notAddressable(peer, scope))
   return parts.join("  ")
+}
+
+/** Why a listed peer cannot be messaged, shown on its line. */
+function notAddressable(peer: PeerView, scope: Scope): string {
+  return peer.projectID === undefined || peer.directory === undefined
+    ? "location unknown — not addressable"
+    : `outside the ${scope} scope — not addressable`
 }
 
 export interface StatusViewInput {
@@ -52,6 +61,7 @@ export function formatStatus(input: StatusViewInput): string {
   const { self, peers, now } = input
   const lines: string[] = []
   const header = [`crosstalk: you are ${self.sessionID}`]
+  if (self.declared?.name) header.push(`(${ellipsis(self.declared.name, 32)})`)
   if (self.agent) header.push(`(${self.agent})`)
   header.push(self.stale ? `${self.status}?` : self.status)
   lines.push(header.join(" "))
@@ -70,7 +80,7 @@ export function formatStatus(input: StatusViewInput): string {
   const counts = [`${peers.length} peer${peers.length === 1 ? "" : "s"}`, `${running} running`, `${idle} idle`]
   if (stale > 0) counts.push(`${stale} stale`)
   lines.push(`  peers on this channel (${input.scope}): ${counts.join(", ")}`)
-  for (const peer of peers) lines.push(`    ${peerLine(peer, now)}`)
+  for (const peer of peers) lines.push(`    ${peerLine(peer, now, input.scope)}`)
   if (peers.length === 0) {
     lines.push("    (none — you are the only session here; crosstalk_wait will just time out)")
   }
@@ -96,8 +106,12 @@ export function formatPeers(input: PeersViewInput): string {
   }
   const running = peers.filter((p) => p.status === "running").length
   lines.push(`crosstalk peers (scope ${input.scope}, ${peers.length} found, ${running} running):`)
-  lines.push(`  you: ${input.self.sessionID}  ${input.self.status}  ${input.self.declared?.role ? `role=${input.self.declared.role}` : "role=undeclared"}`)
-  for (const peer of peers) lines.push(`  ${peerLine(peer, now)}`)
+  const you = [`you: ${input.self.sessionID}`]
+  if (input.self.declared?.name) you.push(`(${ellipsis(input.self.declared.name, 32)})`)
+  you.push(input.self.status)
+  you.push(input.self.declared?.role ? `role=${input.self.declared.role}` : "role=undeclared")
+  lines.push(`  ${you.join("  ")}`)
+  for (const peer of peers) lines.push(`  ${peerLine(peer, now, input.scope)}`)
   return lines.join("\n")
 }
 
@@ -109,6 +123,7 @@ export interface MessageViewInput {
 export function formatMessage(input: MessageViewInput): string {
   const { message, now } = input
   const parts = [`from ${message.from}`]
+  if (message.fromName) parts.push(`(${message.fromName})`)
   if (message.fromRole) parts.push(`(${message.fromRole})`)
   parts.push(`· ${message.kind}`)
   if (message.topic) parts.push(`· topic ${message.topic}`)
@@ -247,7 +262,7 @@ export interface WaitViewInput {
   detail?: string
 }
 
-type WaitReasonLike = "done" | "timeout" | "aborted" | "gone"
+type WaitReasonLike = "done" | "timeout" | "aborted" | "gone" | "outside"
 
 export function formatWait(input: WaitViewInput): string {
   const lines: string[] = []
@@ -259,6 +274,10 @@ export function formatWait(input: WaitViewInput): string {
   }
   if (input.reason === "gone") {
     lines.push(`crosstalk wait: ${input.detail ?? "target is gone"} after ${seconds}s`)
+    return lines.join("\n")
+  }
+  if (input.reason === "outside") {
+    lines.push(`crosstalk wait: ${input.detail ?? "target is outside the communication scope"} after ${seconds}s`)
     return lines.join("\n")
   }
   if (input.reason === "aborted") {

@@ -36,8 +36,9 @@ function errorMessage(error: unknown): string {
 /** The text injected into the recipient's session. */
 export function renderDelivery(message: CrosstalkMessage): string {
   const lines: string[] = ["[crosstalk] another session on this project is talking to you."]
-  if (message.fromRole) lines.push(`from ${message.from} (${message.fromRole}) — ${message.kind}.`)
-  else lines.push(`from ${message.from} — ${message.kind}.`)
+  const actor = `${message.from}${message.fromName ? ` (${message.fromName})` : ""}`
+  if (message.fromRole) lines.push(`from ${actor} (${message.fromRole}) — ${message.kind}.`)
+  else lines.push(`from ${actor} — ${message.kind}.`)
   if (message.topic) lines.push(`topic: ${message.topic}`)
   lines.push("")
   lines.push(message.text)
@@ -64,6 +65,7 @@ export function createSessionDeliverer(session: SessionLike): Deliverer {
               id: message.id,
               seq: message.seq,
               from: message.from,
+              ...(message.fromName ? { fromName: message.fromName } : {}),
               fromRole: message.fromRole,
               kind: message.kind,
               ...(message.topic ? { topic: message.topic } : {}),

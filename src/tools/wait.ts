@@ -67,6 +67,7 @@ export function waitTool(deps: ToolDeps): CrosstalkToolInfo {
               reason: result.reason,
               elapsedMs: result.elapsedMs,
               ...(result.reason === "gone" ? { detail: `${sessionID} is not on this channel any more` } : {}),
+              ...(result.reason === "outside" ? { detail: `${sessionID} is outside the ${deps.options.scope} scope` } : {}),
             })
           } else if (resource) {
             const result = await deps.mesh.waitForClaimFree(

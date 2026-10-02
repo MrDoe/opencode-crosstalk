@@ -174,6 +174,28 @@ test("project scope hides other projects but keeps unknown-project peers", () =>
   assert.deepEqual(visible.sort(), ["ses_same", "ses_unknown"])
 })
 
+test("strict project scope excludes peers whose project cannot be proven", () => {
+  const { registry: reg } = registry()
+  reg.apply(createdEvent("ses_self", { projectID: "proj-1" }))
+  reg.apply(createdEvent("ses_same", { projectID: "proj-1" }))
+  reg.apply(createdEvent("ses_other", { projectID: "proj-9" }))
+  reg.apply(event("session.status", { sessionID: "ses_unknown", status: { type: "busy" } }))
+
+  const strict = reg.list({ selfID: "ses_self", scope: "project", strict: true }).map((peer) => peer.sessionID)
+  assert.deepEqual(strict, ["ses_same"], "the wall only knows provable peers")
+})
+
+test("strict location scope requires a provable directory", () => {
+  const { registry: reg } = registry()
+  reg.apply(createdEvent("ses_self", { location: { directory: "/repo" } }))
+  reg.apply(createdEvent("ses_same_dir", { location: { directory: "/repo" } }))
+  reg.apply(createdEvent("ses_worktree", { location: { directory: "/repo/wt" } }))
+  reg.apply(event("session.status", { sessionID: "ses_unknown", status: { type: "busy" } }))
+
+  const strict = reg.list({ selfID: "ses_self", scope: "location", strict: true }).map((peer) => peer.sessionID)
+  assert.deepEqual(strict, ["ses_same_dir"])
+})
+
 test("location scope compares directories", () => {
   const { registry: reg } = registry()
   reg.apply(createdEvent("ses_self", { location: { directory: "/repo" } }))

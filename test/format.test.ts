@@ -25,6 +25,7 @@ function peer(overrides: Partial<PeerView> = {}): PeerView {
     stale: false,
     unread: 0,
     claims: [],
+    addressable: true,
     ...overrides,
   }
 }
@@ -56,7 +57,7 @@ test("formatStatus renders identity, declaration, and the peer list", () => {
       isSelf: true,
       agent: "build",
       title: "Refactor auth",
-      declared: { role: "migrator", goal: "move auth off sessions", workingOn: ["src/auth/session.ts"] },
+      declared: { name: "George", role: "migrator", goal: "move auth off sessions", workingOn: ["src/auth/session.ts"] },
       claims: ["/repo/src/auth/session.ts"],
     }),
     peers: [peer({ sessionID: "ses_b", title: "Fix login", agent: "plan", claims: ["/repo/src/db.ts"] })],
@@ -68,7 +69,7 @@ test("formatStatus renders identity, declaration, and the peer list", () => {
   assert.equal(
     output,
     [
-      "crosstalk: you are ses_self (build) running",
+      "crosstalk: you are ses_self (George) (build) running",
       "  session: Refactor auth",
       "  role: migrator",
       "  goal: move auth off sessions",
@@ -148,12 +149,44 @@ test("formatPeers marks an undeclared role so peers know to ask", () => {
   assert.match(output, /role=undeclared/)
 })
 
+test("formatPeers shows declared human names", () => {
+  const output = formatPeers({
+    self: peer({ sessionID: "ses_self", isSelf: true, declared: { name: "George", role: "reviewer" } }),
+    peers: [peer({ sessionID: "ses_b", declared: { name: "Alex" } })],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(output, /you: ses_self {2}\(George\) {2}running {2}role=reviewer/)
+  assert.match(output, /- ses_b {2}\(Alex\) {2}running {2}active 4s ago/)
+})
+
+test("formatPeers marks peers outside the communication wall", () => {
+  const output = formatPeers({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [
+      peer({ sessionID: "ses_unknown", addressable: false }),
+      peer({ sessionID: "ses_other", projectID: "proj-9", directory: "/elsewhere", addressable: false }),
+    ],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(output, /ses_unknown.*location unknown — not addressable/)
+  assert.match(output, /ses_other.*outside the project scope — not addressable/)
+})
+
 test("formatMessage summarises sender, kind, topic, and age", () => {
   assert.equal(
     formatMessage({ message: message({ fromRole: "reviewer", kind: "request", topic: "auth" }), now: NOW }),
     "from ses_sender (reviewer) · request · topic auth · 0s ago",
   )
   assert.equal(formatMessage({ message: message(), now: NOW }), "from ses_sender · message · 0s ago")
+})
+
+test("formatMessage shows the sender's declared name when it has one", () => {
+  assert.equal(
+    formatMessage({ message: message({ fromName: "George", fromRole: "reviewer", kind: "request" }), now: NOW }),
+    "from ses_sender (George) (reviewer) · request · 0s ago",
+  )
 })
 
 test("formatInbox renders each message body indented under its header", () => {
@@ -294,7 +327,7 @@ test("formatClaims reports an empty request and an empty inventory", () => {
   assert.equal(output, ["crosstalk claim: nothing to do", "  you hold no leases"].join("\n"))
 })
 
-test("formatWait covers all four outcomes", () => {
+test("formatWait covers every outcome", () => {
   assert.equal(
     formatWait({ forWhat: "peer_idle", reason: "done", elapsedMs: 1_234, detail: "ses_b" }),
     "crosstalk wait: peer idle after 1.2s — ses_b",
@@ -302,6 +335,10 @@ test("formatWait covers all four outcomes", () => {
   assert.equal(
     formatWait({ forWhat: "claim_free", reason: "gone", elapsedMs: 5_000 }),
     "crosstalk wait: target is gone after 5s",
+  )
+  assert.equal(
+    formatWait({ forWhat: "peer_idle", reason: "outside", elapsedMs: 0, detail: "ses_b is outside the project scope" }),
+    "crosstalk wait: ses_b is outside the project scope after 0s",
   )
   assert.equal(
     formatWait({ forWhat: "peer_idle", reason: "aborted", elapsedMs: 2_000 }),

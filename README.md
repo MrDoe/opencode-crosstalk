@@ -85,10 +85,10 @@ short briefing to the system prompt when there is at least one peer or one
 active lease. A typical exchange:
 
 ```text
-crosstalk_status { role: "migrator", goal: "port auth off sessions" }
+crosstalk_status { name: "Riley", role: "migrator", goal: "port auth off sessions" }
 crosstalk_peers {}
 → crosstalk peers (scope project, 1 found, 1 running):
-    - ses_9f2  running  role=reviewer  "check my auth changes"  claims /repo/src/auth/session.ts
+    - ses_9f2  (Alex)  running  role=reviewer  "check my auth changes"  claims /repo/src/auth/session.ts
 
 crosstalk_claim { action: "claim", resources: ["src/auth/session.ts"] }
 → crosstalk claim: refused — 1 resource already leased
@@ -96,7 +96,7 @@ crosstalk_claim { action: "claim", resources: ["src/auth/session.ts"] }
   wait for them with crosstalk_wait, signal them with crosstalk_send, or pass force: true to steal.
   nothing was claimed (atomic request).
 
-crosstalk_send { to: "ses_9f2", kind: "request",
+crosstalk_send { to: "Alex", kind: "request",
                  text: "I need to rewrite session.ts. Are you done?" }
 
 crosstalk_wait { for: "peer_idle", sessionID: "ses_9f2", timeoutSeconds: 120 }
@@ -120,22 +120,28 @@ replace later.
 Other OpenCode sessions in this workspace are reachable through the
 `opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
 `crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
-Talk to each other briefly, but keep working — only stop for coordination that prevents
-a real collision.
+Write in **English only** and keep everything token-tight: one short sentence
+per status, message, or claim note (who, what, where) — no reports, no
+summaries, no pleasantries. Keep working; only stop for coordination that
+prevents a real collision.
 
-- **Declare once - precisely and concisely - then keep moving.** `crosstalk_status` sets your role and goal;
-  `crosstalk_peers` shows active sessions and their leases. Work that does not
-  overlap theirs needs no coordination.
-- **Talk before you collide.** If you need something a peer holds, `crosstalk_send`
-  a short precise ask and continue elsewhere; replies are injected into live turns (use
+- **Declare once — briefly — then keep moving.** `crosstalk_status` sets a unique
+  human name (so the user can say "tell George…" and peers can address you), your
+  role, and a goal of a few words; `crosstalk_peers` shows active sessions and
+  their leases. Work that does not overlap theirs needs no coordination.
+- **Talk before you collide — as a notice, not an essay.** If you need something a
+  peer holds, `crosstalk_send` one short precise sentence (`to: "George"` or a
+  session id) and continue elsewhere; replies are injected into live turns (use
   `crosstalk_inbox` to catch up). Never force a claim.
-- **Lease what you are editing now.** `crosstalk_claim` takes an exclusive expiring
-  lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`). `renew` if the
-  work runs long, `release` when done; a refusal names the holder.
-- **Identity is automatic** — never pass a "who am I". Blocking calls are capped by
-  `maxWaitMs` and may return early; that is normal.
+- **Lease what you are editing now.** `crosstalk_claim` takes an exclusive
+  expiring lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`);
+  keep the note to a few words. `renew` if the work runs long, `release` when
+  done; a refusal names the holder.
+- **Only sessions in this project are reachable** — peers marked "not addressable"
+  (location unknown or a different project) cannot receive mail, so do not try.
 
-Installed globally - `opencode api get /api/plugin` shows if `opencode.crosstalk` is active.
+Installed globally — `opencode api get /api/plugin` shows `opencode.crosstalk`
+active.
 <!-- opencode-crosstalk:end -->
 ```
 
@@ -174,6 +180,21 @@ itself and accept that it is one key, not a subtree.
 **Messages are not persisted.** Peers and leases survive a plugin reload through
 `ctx.storage`; mailboxes do not. Replaying stale mail after a restart is worse
 than an empty inbox.
+
+**Sessions carry a human name, but identity stays the session id.** A session
+may give itself a unique nickname with `crosstalk_status { name: "George" }` so
+the user can say "tell George…" and peers can address it by name in
+`crosstalk_send`. Names are case-insensitively unique among visible peers — a
+taken name is refused and names the holder — and travel with each message
+(`fromName`), so the inbox shows who is talking even mid-session.
+
+**The channel is walled to sessions provably in your project.** `scope` still
+controls what a *listing* shows, but communication is stricter: a peer is
+addressable only when its project (or directory, under `scope: "location"`) is
+provably equal to yours. Unknown locations stay listed — marked
+"not addressable" — but sends, role/`all` broadcasts, `crosstalk_wait`, and
+injection retries all refuse them, so a session in another project folder can
+neither be messaged nor have mail injected into it.
 
 ## Options
 
@@ -237,7 +258,7 @@ and splits tools on `options.codemode === false` (direct) versus everything else
 
 ```sh
 npm install
-npm test          # 184 unit tests, no network, no server
+npm test          # 204 unit tests, no network, no server
 npm run typecheck
 npm run test:e2e  # live smoke test, needs OPENCODE_E2E=1 and a usable model
 npm run setup     # link the plugin in globally

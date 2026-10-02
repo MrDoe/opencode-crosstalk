@@ -23,6 +23,7 @@ export interface MailboxOptions {
 
 export interface SendInput {
   from: string
+  fromName?: string
   fromRole?: string
   to: readonly string[]
   text: string
@@ -86,6 +87,7 @@ export class Mailbox {
         id: this.#idFactory(this.#seq),
         seq: this.#seq,
         from: input.from,
+        fromName: input.fromName,
         fromRole: input.fromRole,
         to,
         text: input.text,
