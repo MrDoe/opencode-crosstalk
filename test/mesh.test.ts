@@ -104,6 +104,57 @@ test("restore keeps live fields when both sides have them", () => {
   assert.equal(peer?.declared?.name, "Live")
 })
 
+// ── portraits ────────────────────────────────────────────────────────────────
+
+const personaPool = [
+  { file: "f-coder.png", pool: "female", role: "coder" },
+  { file: "m-manager.png", pool: "male", role: "manager" },
+  { file: "f-writer.png", pool: "female", role: "writer" },
+]
+
+test("the first task-bearing declaration freezes the portrait", () => {
+  const { mesh } = createTestMesh({ avatars: personaPool })
+  mesh.declare("ses_a", { name: "Rita", role: "coder", goal: "avatars" })
+  const frozen = mesh.registry.get("ses_a")?.portrait
+  assert.equal(frozen, "female/f-coder.png", "the matching role inside the pool wins")
+
+  mesh.declare("ses_a", { role: "manager", avatar: "👨" })
+  assert.equal(mesh.registry.get("ses_a")?.portrait, frozen, "a later role or hint cannot move the artwork")
+})
+
+test("a bare name is not a task, so the portrait waits for one", () => {
+  const { mesh } = createTestMesh({ avatars: personaPool })
+  mesh.declare("ses_a", { name: "Rita", note: "just saying hi" })
+  assert.equal(mesh.registry.get("ses_a")?.portrait, undefined, "no role, no goal: no avatar")
+
+  mesh.declare("ses_a", { role: "writer" })
+  assert.equal(mesh.registry.get("ses_a")?.portrait, "female/f-writer.png", "the first task assigns it")
+})
+
+test("assignPortraits backfills restored task-bearing peers without moving frozen ones", () => {
+  const { mesh } = createTestMesh({ avatars: personaPool })
+  mesh.restore({
+    version: 1,
+    savedAt: 0,
+    peers: [
+      { sessionID: "ses_old", status: "idle", lastSeen: 1, declared: { name: "Rita", role: "coder" } },
+      {
+        sessionID: "ses_set",
+        status: "idle",
+        lastSeen: 1,
+        declared: { name: "Max", role: "manager" },
+        portrait: "male/m-manager.png",
+      },
+    ],
+    claims: [],
+  })
+  assert.equal(mesh.registry.get("ses_old")?.portrait, undefined)
+
+  assert.equal(mesh.assignPortraits(), 1, "only the missing portrait is assigned")
+  assert.ok(mesh.registry.get("ses_old")?.portrait)
+  assert.equal(mesh.registry.get("ses_set")?.portrait, "male/m-manager.png", "a frozen portrait survives")
+})
+
 test("send to a known peer delivers and records in their mailbox", async () => {
   const { mesh, deliverer } = createTestMesh()
   mesh.applyEvent(createdEvent("ses_self"))

@@ -20,6 +20,7 @@ const sessionSchema = {
     avatar: { type: "string" },
     directory: { type: "string" },
     projectID: { type: "string" },
+    portrait: { type: "string" },
   },
   required: ["sessionID", "status"],
   additionalProperties: false,

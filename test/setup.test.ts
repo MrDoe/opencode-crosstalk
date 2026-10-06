@@ -345,12 +345,22 @@ test("the RPC directory exposes declared sessions", async () => {
   const registration = fake.rpc.registered[0]
   assert.equal(registration?.definition.id, "crosstalk")
   const payload = (await registration?.handlers.directory?.()) as {
-    sessions: Array<{ sessionID: string; name?: string; role?: string; avatar?: string }>
+    sessions: Array<{ sessionID: string; name?: string; role?: string; avatar?: string; portrait?: string }>
   }
   const rita = payload.sessions.find((session) => session.sessionID === "ses_a")
   assert.equal(rita?.name, "Rita")
   assert.equal(rita?.role, "coder")
   assert.equal(rita?.avatar, "👩")
+  const frozen = rita?.portrait
+  assert.ok(frozen !== undefined && /^(female|male)\//.test(frozen), "a task-bearing declaration carries a frozen portrait")
+
+  // A later declaration with a different role must not move the artwork.
+  await fake.editor.byName("status").execute(
+    { role: "manager" },
+    { sessionID: "ses_a" as never, signal: new AbortController().signal, progress: async () => {} } as never,
+  )
+  const again = (await registration?.handlers.directory?.()) as typeof payload
+  assert.equal(again.sessions.find((session) => session.sessionID === "ses_a")?.portrait, frozen)
   await fake.cleanup()
 })
 
@@ -362,11 +372,12 @@ test("a peer that missed session.created is healed through session.get", async (
 
   const registration = fake.rpc.registered[0]
   const payload = (await registration?.handlers.directory?.()) as {
-    sessions: Array<{ sessionID: string; projectID?: string; directory?: string; title?: string }>
+    sessions: Array<{ sessionID: string; projectID?: string; directory?: string; title?: string; portrait?: string }>
   }
   const healed = payload.sessions.find((session) => session.sessionID === "ses_late")
   assert.equal(healed?.projectID, "proj-1")
   assert.equal(healed?.directory, "/repo")
+  assert.equal(healed?.portrait, undefined, "a session without a task gets no portrait")
   assert.equal(fake.sessionGets.length, 1, "the host is asked once per session")
 
   // A later event must not trigger another read.

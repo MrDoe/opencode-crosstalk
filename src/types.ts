@@ -24,8 +24,10 @@ export interface Declared {
   workingOn?: string[]
   note?: string
   /**
-   * Optional avatar hint (an emoji such as `👩` or `👨`) the TUI uses to pick
-   * the character pool. The concrete artwork is chosen by the TUI plugin.
+   * Optional avatar hint (an emoji such as `👩` or `👨`) that steers which
+   * character pool the portrait is drawn from. The concrete artwork is chosen
+   * by the mesh on the session's first task-bearing declaration and then
+   * frozen on the peer record — see `Peer.portrait`.
    */
   avatar?: string
   updatedAt?: number
@@ -46,6 +48,12 @@ export interface Peer {
   /** Timestamp of the most recent event seen for this session. */
   lastSeen: number
   declared?: Declared
+  /**
+   * Frozen portrait: `pool/file` inside `assets/avatars/`, assigned by the
+   * mesh when the session first declares a task and never changed again —
+   * re-declaring a different role, name, or avatar hint cannot move it.
+   */
+  portrait?: string
 }
 
 /** A peer enriched with mesh-derived state, as returned to tools. */

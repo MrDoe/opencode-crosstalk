@@ -1,76 +1,33 @@
 /**
- * @fileoverview Avatar selection: map a session to one of the bundled Personas,
- * and give each Persona the emoticon it is shown by.
+ * @fileoverview How a frozen portrait is shown: the emoticon that belongs to
+ * the Persona it was given, and the title that emoticon is written into.
  *
- * Pure and host-free so it is unit-testable: the TUI plugin supplies the
- * manifest entries and the directory entry, this file decides the file, the
- * emoticon, and the title the emoticon is written into.
- *
- * An emoticon belongs to the avatar, not the session: it is derived from the
- * manifest entry, so a session shows the glyph of the Persona it was handed and
- * two TUI processes agree without negotiating. The glyph set is curated —
- * tools, objects, and people only, never a smiley — because it has to read at a
- * glance in a tab header as well as beside the portrait.
+ * The selection itself lives in `src/core/avatar.ts`: the server freezes one
+ * portrait per session when a task is first declared, so this side only maps a
+ * portrait path back to its manifest entry and decorates it. Pure and
+ * host-free so it is unit-testable.
  */
 
-import type { DirectoryEntry } from "../core/directory.ts"
+import { hash, type AvatarEntry } from "../core/avatar.ts"
 
-/** One entry of `assets/avatars/manifest.json`. */
-export interface AvatarEntry {
-  file: string
-  pool: string
-  role: string
-  skin?: string
-  mouth?: string
-  hair?: string
-  eyes?: string
-  clothes?: string
-  nose?: string
-  hairColor?: string
-  clothingColor?: string
-}
+export {
+  chooseAvatar,
+  hasTask,
+  hash,
+  poolHint,
+  portraitFor,
+  type AvatarEntry,
+  type AvatarPool,
+  type AvatarSession,
+} from "../core/avatar.ts"
 
-export type AvatarPool = "female" | "male"
-
-/**
- * Gender hint from the declared avatar emoji. Personas are hand-curated into
- * two pools, so the emoji only steers the pool; the tone is baked into the art.
- */
-export function poolHint(avatar: string | undefined): AvatarPool | undefined {
-  if (!avatar) return undefined
-  if (avatar.includes("👩") || avatar.includes("👧") || avatar.includes("👵")) return "female"
-  if (avatar.includes("👨") || avatar.includes("👦") || avatar.includes("👴") || avatar.includes("🧔")) return "male"
-  return undefined
-}
-
-/** FNV-1a, so a session's avatar is stable across reloads and processes. */
-export function hash(input: string): number {
-  let value = 2166136261
-  for (let index = 0; index < input.length; index += 1) {
-    value ^= input.charCodeAt(index)
-    value = Math.imul(value, 16777619)
-  }
-  return value >>> 0
-}
-
-/**
- * Pick the avatar for one session:
- *
- * 1. the declared emoji picks a pool when it names a gender;
- * 2. a role that matches a seed wins inside that pool;
- * 3. otherwise the name (or session id) hashes to a stable entry.
- */
-export function chooseAvatar(
+/** The manifest entry a frozen portrait (`pool/file`) refers to. */
+export function entryForPortrait(
   entries: readonly AvatarEntry[],
-  session: Pick<DirectoryEntry, "sessionID" | "name" | "role" | "avatar">,
+  portrait: string | undefined,
 ): AvatarEntry | undefined {
-  if (entries.length === 0) return undefined
-  const pool = poolHint(session.avatar)
-  const pooled = pool ? entries.filter((entry) => entry.pool === pool) : entries
-  const role = session.role?.toLowerCase()
-  const byRole = role ? pooled.filter((entry) => entry.role.toLowerCase() === role) : []
-  const candidates = byRole.length > 0 ? byRole : pooled.length > 0 ? pooled : entries
-  return candidates[hash(session.name ?? session.sessionID) % candidates.length]
+  if (portrait === undefined) return undefined
+  return entries.find((entry) => `${entry.pool}/${entry.file}` === portrait)
 }
 
 /**

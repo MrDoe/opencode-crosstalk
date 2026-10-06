@@ -19,6 +19,7 @@ import type {
   PeerView,
   Scope,
 } from "../types.ts"
+import { hasTask, portraitFor, type AvatarEntry } from "./avatar.ts"
 import { delay, systemClock, type Clock } from "./clock.ts"
 import { ClaimTable } from "./claims.ts"
 import { Mailbox, type ListOptions, type WaitResult } from "./mailbox.ts"
@@ -45,6 +46,8 @@ export interface MeshDeps {
   deliverer?: Deliverer
   /** Plugin location, used when a peer record carries no project or directory. */
   defaults?: { projectID?: string; directory?: string }
+  /** Bundled Personas; when present, each session freezes one portrait per task. */
+  avatars?: readonly AvatarEntry[]
   idFactory?(seq: number): string
 }
 
@@ -129,6 +132,7 @@ export class Mesh {
   readonly #clock: Clock
   readonly #deliverer: Deliverer | undefined
   readonly #defaults: { projectID?: string; directory?: string }
+  readonly #avatars: readonly AvatarEntry[]
   readonly #idFactory: ((seq: number) => string) | undefined
   /**
    * Messages that are in a mailbox but were never injected into the live
@@ -146,6 +150,7 @@ export class Mesh {
     this.#clock = deps.clock ?? systemClock
     this.#deliverer = deps.deliverer
     this.#defaults = deps.defaults ?? {}
+    this.#avatars = deps.avatars ?? []
     this.#idFactory = deps.idFactory
     this.registry = new Registry({
       now: () => this.#clock.now(),
@@ -273,6 +278,18 @@ export class Mesh {
     }
     peer.declared = merged
     peer.lastSeen = this.#clock.now()
+    // The portrait is a one-shot decision: it is assigned when a task first
+    // shows up and frozen afterwards, so no later declaration — different
+    // role, name, or avatar hint — can move the artwork.
+    if (peer.portrait === undefined && hasTask(merged)) {
+      const portrait = portraitFor(this.#avatars, {
+        sessionID: id,
+        name: merged.name,
+        role: merged.role,
+        avatar: merged.avatar,
+      })
+      if (portrait !== undefined) peer.portrait = portrait
+    }
     this.#notify()
     return { view: this.view(id) }
   }
@@ -285,6 +302,31 @@ export class Mesh {
       if (peer.declared?.name?.toLowerCase() === wanted) return peer.sessionID
     }
     return undefined
+  }
+
+  /**
+   * Freeze portraits for sessions that already carry a task but have no
+   * portrait — the ones that declared before the portrait existed, or records
+   * restored from an older snapshot. One pass at startup; returns how many
+   * were assigned.
+   */
+  assignPortraits(): number {
+    let assigned = 0
+    for (const peer of this.registry.list({ scope: "server" })) {
+      if (peer.portrait !== undefined || !hasTask(peer.declared)) continue
+      const portrait = portraitFor(this.#avatars, {
+        sessionID: peer.sessionID,
+        name: peer.declared?.name,
+        role: peer.declared?.role,
+        avatar: peer.declared?.avatar,
+      })
+      if (portrait !== undefined) {
+        peer.portrait = portrait
+        assigned += 1
+      }
+    }
+    if (assigned > 0) this.#notify()
+    return assigned
   }
 
   /**
@@ -682,6 +724,7 @@ export class Mesh {
         if (live.directory === undefined && peer.directory !== undefined) live.directory = peer.directory
         if (live.created === undefined && peer.created !== undefined) live.created = peer.created
         if (live.declared === undefined && peer.declared !== undefined) live.declared = peer.declared
+        if (live.portrait === undefined && peer.portrait !== undefined) live.portrait = peer.portrait
         continue
       }
       const restored = this.registry.ensure(peer.sessionID)
@@ -695,6 +738,7 @@ export class Mesh {
       if (peer.directory !== undefined) restored.directory = peer.directory
       if (peer.created !== undefined) restored.created = peer.created
       if (peer.declared !== undefined) restored.declared = peer.declared
+      if (peer.portrait !== undefined) restored.portrait = peer.portrait
     }
     const held = new Set(this.claims.entries().map((claim) => claim.key))
     for (const claim of snapshot.claims) {

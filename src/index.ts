@@ -17,8 +17,10 @@
  * only as types plus `Plugin.define`, keeping the core free of host coupling.
  */
 
+import { readFileSync } from "node:fs"
 import { Plugin } from "@opencode/plugin"
 import { parseOptions } from "./config.ts"
+import { type AvatarEntry } from "./core/avatar.ts"
 import { systemClock } from "./core/clock.ts"
 import { directoryPayload } from "./core/directory.ts"
 import { Mesh } from "./core/mesh.ts"
@@ -79,6 +81,18 @@ function eventSessionID(event: { data?: Readonly<Record<string, unknown>> }): st
   return typeof value === "string" && value.length > 0 ? value : undefined
 }
 
+/** The bundled Personas pool; empty when the art is missing or unreadable. */
+function loadAvatars(): AvatarEntry[] {
+  try {
+    const parsed = JSON.parse(readFileSync(new URL("../assets/avatars/manifest.json", import.meta.url), "utf8")) as {
+      entries?: AvatarEntry[]
+    }
+    return Array.isArray(parsed.entries) ? parsed.entries : []
+  } catch {
+    return []
+  }
+}
+
 export default Plugin.define({
   id,
   async setup(ctx) {
@@ -102,6 +116,7 @@ export default Plugin.define({
       clock: systemClock,
       deliverer: createSessionDeliverer(toSessionLike(ctx.session)),
       defaults: { ...(projectID ? { projectID } : {}), ...(directory ? { directory } : {}) },
+      avatars: loadAvatars(),
     })
 
     // `ctx.storage` is JSON-typed; snapshots are plain JSON by construction,
@@ -120,6 +135,10 @@ export default Plugin.define({
       const snapshot = await store.load(projectID)
       if (snapshot) mesh.restore(snapshot)
     }
+    // Sessions that declared a task before the portrait feature existed (or
+    // whose snapshot predates it) get one now — the only place a portrait is
+    // assigned outside `declare`.
+    mesh.assignPortraits()
 
     // Persist after quiet periods: the event stream is chatty and a write per
     // event would hammer storage for state that is identical.

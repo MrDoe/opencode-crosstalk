@@ -8,6 +8,7 @@
 
 import type { CrosstalkOptions } from "../../src/config.ts"
 import { DEFAULTS } from "../../src/config.ts"
+import type { AvatarEntry } from "../../src/core/avatar.ts"
 import { Mesh, type Deliverer, type MeshOptions } from "../../src/core/mesh.ts"
 import type { CrosstalkMessage, MessageKind } from "../../src/types.ts"
 import type { CrosstalkToolInfo, ToolContext } from "../../src/tools/types.ts"
@@ -224,10 +225,12 @@ export interface TestMeshOptions extends Partial<MeshOptions> {
    * exercised when time actually passes.
    */
   realClock?: boolean
+  /** Stand-in for the bundled Personas when a test exercises portraits. */
+  avatars?: readonly AvatarEntry[]
 }
 
 export function createTestMesh(options: TestMeshOptions = {}): TestMesh {
-  const { realClock, ...meshOpts } = options
+  const { realClock, avatars, ...meshOpts } = options
   const clock = createManualClock()
   const deliverer = createDeliverer()
   const mesh = new Mesh({
@@ -235,6 +238,7 @@ export function createTestMesh(options: TestMeshOptions = {}): TestMesh {
     clock: realClock ? { now: () => Date.now() } : clock,
     deliverer,
     defaults: { projectID: "proj-1", directory: "/repo" },
+    ...(avatars ? { avatars } : {}),
   })
   return { mesh, clock, deliverer }
 }

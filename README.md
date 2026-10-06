@@ -130,10 +130,15 @@ browse the pool by opening `assets/avatars/index.html` in a browser):
 
 - `crosstalk_status { name: "Rita", role: "coder", avatar: "👩" }` — the emoji is
   a hint: 👩/👨 pick the character pool, and the skin tone is baked into the art.
+- An avatar appears when the session has a task: the first `crosstalk_status`
+  that carries a role or a goal freezes one portrait onto the session, and
+  nothing changes it afterwards — a later role, name, or avatar hint cannot
+  move the artwork. A session with only a name, or nothing at all, shows no
+  avatar.
 - The declared role picks the character when it matches a pool seed (`coder`,
-  `reviewer`, `explorer`, …); otherwise the name hashes to a stable one, so a
-  session keeps its avatar across reloads and restarts.
-- Sessions that never declare anything simply show no avatar.
+  `reviewer`, `explorer`, …); otherwise the name hashes to a stable one. The
+  portrait is stored on the session record, so it survives reloads and
+  restarts.
 - Every avatar also carries an **emoticon** — one curated glyph for its role
   (`coder` → 💻, `librarian` → 📚, 46 roles), chosen from tools, objects, and
   people and never a smiley. It is derived from the manifest entry, so the same

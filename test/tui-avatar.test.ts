@@ -5,6 +5,7 @@ import {
   chooseAvatar,
   EMOTICONS,
   emoticonFor,
+  entryForPortrait,
   hash,
   poolHint,
   stripEmoticon,
@@ -51,6 +52,13 @@ test("the same name picks the same avatar across calls", () => {
 
 test("no entries means no avatar", () => {
   assert.equal(chooseAvatar([], { sessionID: "s1" }), undefined)
+})
+
+test("entryForPortrait resolves the frozen path, or nothing", () => {
+  assert.equal(entryForPortrait(entries, "female/f-coder.png")?.file, "f-coder.png")
+  assert.equal(entryForPortrait(entries, "male/f-coder.png"), undefined, "the pool is part of the key")
+  assert.equal(entryForPortrait(entries, "female/gone.png"), undefined, "art that left the manifest has no entry")
+  assert.equal(entryForPortrait(entries, undefined), undefined, "no portrait: no avatar")
 })
 
 test("hash is stable and unsigned", () => {

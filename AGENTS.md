@@ -37,11 +37,11 @@ npm run test:e2e    # spawns a real opencode + real model calls; see below
 | --- | --- |
 | `index.ts` | Host directory entrypoint — re-exports `src/index.ts`. Required: the host resolves plugin directories by a root `index.ts`/`index.js` and ignores `package.json` `main`/`exports`; a directory without one is dropped silently. |
 | `src/index.ts` | **The server-side** runtime importer of `@opencode/plugin` (`Plugin.define`). Wires mesh + event pump + tools + briefing hook + the crosstalk RPC, and returns the cleanup that undoes all of it. |
-| `src/core/` | Host-free coordination logic. `mesh.ts` is the façade over `Registry` (presence), `Mailbox`, `ClaimTable`; also the package's `./core` export. |
+| `src/core/` | Host-free coordination logic. `mesh.ts` is the façade over `Registry` (presence), `Mailbox`, `ClaimTable`; `avatar.ts` is the pure portrait selection the mesh freezes per session; also the package's `./core` export. |
 | `src/tools/` | The six `crosstalk_*` tool definitions. `args.ts` is the input validator, `types.ts` the shared plumbing. |
 | `src/rpc.ts` | The RPC contract shared by the server and CLI plugins — a plain object with a type-only import, so neither process needs a runtime plugin module for it. |
 | `tui.ts` | Host entrypoint for the CLI (TUI) plugin — re-exports `src/tui/index.tsx`. The host discovers a TUI entrypoint beside the server entry (`tui.ts` next to `index.ts`). |
-| `src/tui/` | CLI plugin. `index.tsx` renders the sidebar avatar; `avatar.ts` is the pure role/pool/hash selection. |
+| `src/tui/` | CLI plugin. `index.tsx` renders the sidebar avatar; `avatar.ts` maps the frozen portrait to its emoticon and title prefix. |
 | `assets/avatars/` | Curated Personas PNG pool (92), `manifest.json`, `ATTRIBUTION.md` (CC BY 4.0). |
 | `src/config.ts` | `parseOptions` + `DEFAULTS`. |
 | `src/events.ts`, `src/deliverer.ts`, `src/storage.ts` | Adapters over `ctx.event`, `ctx.session.synthetic`, `ctx.storage`, each behind a narrow structural interface. |
@@ -76,9 +76,13 @@ never fires.
 - **Identity comes from `context.sessionID`, never from input.** No tool takes a
   "who am I" argument. Keep it that way — it is what stops one session releasing
   another's leases or reading another's mail.
-- **The `avatar` hint is presentation-only.** `crosstalk_status` accepts an
-  optional emoji that lands in `Declared` like any other field; only the TUI
-  plugin interprets it (character pool). Core never resolves or validates it.
+- **The `avatar` hint steers a frozen portrait.** `crosstalk_status` accepts an
+  optional emoji that lands in `Declared` like any other field. The mesh resolves
+  it (with role and name) through `src/core/avatar.ts` when a session first
+  declares a task (a role or a goal) and stores the result as `Peer.portrait` —
+  assigned once, never re-derived. The TUI renders that path, and the tab glyph
+  derives from it, so neither a role change nor a re-declaration can move the
+  artwork. Sessions without a task show no avatar.
 - **Bad input is returned, not thrown.** `run()` turns an `ArgError` into
   `crosstalk: …` content the model can correct itself from, and cross-field rules
   (`for: "peer_idle"` needs `sessionID`) are an early `return` of a message.

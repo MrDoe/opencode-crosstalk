@@ -18,6 +18,8 @@ export type DirectoryEntry = {
   avatar?: string
   directory?: string
   projectID?: string
+  /** Frozen portrait (`pool/file` inside `assets/avatars/`); absent before the first task. */
+  portrait?: string
 }
 
 export type DirectoryPayload = { sessions: DirectoryEntry[] }
@@ -33,6 +35,7 @@ export function directoryPayload(mesh: Mesh): DirectoryPayload {
     if (peer.declared?.avatar !== undefined) entry.avatar = peer.declared.avatar
     if (peer.directory !== undefined) entry.directory = peer.directory
     if (peer.projectID !== undefined) entry.projectID = peer.projectID
+    if (peer.portrait !== undefined) entry.portrait = peer.portrait
     return entry
   })
   return { sessions }

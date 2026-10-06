@@ -12,7 +12,7 @@ import { Show, createMemo, createSignal } from "solid-js"
 import type { DirectoryEntry, DirectoryPayload } from "../core/directory.ts"
 import { normalizeResource } from "../core/claims.ts"
 import { CrosstalkRpc } from "../rpc.ts"
-import { chooseAvatar, emoticonFor, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
+import { emoticonFor, entryForPortrait, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
 
 const manifestUrl = new URL("../../assets/avatars/manifest.json", import.meta.url)
 
@@ -58,10 +58,10 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
   const context = usePlugin()
   const [failed, setFailed] = createSignal(false)
   const session = () => props.directory().sessions.find((entry) => entry.sessionID === props.sessionID)
-  const picked = () => {
-    const current = session()
-    return current ? chooseAvatar(props.entries, current) : undefined
-  }
+  // The server froze the portrait when the session first declared a task;
+  // a session without one has no task and shows no avatar. A portrait whose
+  // art left the manifest is not swapped for another — it shows nothing.
+  const picked = createMemo(() => entryForPortrait(props.entries, session()?.portrait))
   // Stable source: a fresh URL on every directory update would make the
   // renderable re-decode the PNG on each change event.
   const source = createMemo(() => {
@@ -122,7 +122,11 @@ export default Plugin.define({
       if (home === undefined) return
       for (const entry of payload.sessions) {
         if (entry.name === undefined || !inPlace(entry.directory, home)) continue
-        const wanted = titleWithEmoticon(entry.title, emoticonFor(chooseAvatar(entries, entry)))
+        // The glyph freezes with the portrait: a later role change never
+        // silently rewrites the user's tab title.
+        const portrait = entryForPortrait(entries, entry.portrait)
+        if (portrait === undefined) continue
+        const wanted = titleWithEmoticon(entry.title, emoticonFor(portrait))
         if (wanted === undefined || written.get(entry.sessionID) === wanted) continue
         written.set(entry.sessionID, wanted)
         try {
