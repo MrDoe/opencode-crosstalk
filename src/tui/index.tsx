@@ -2,7 +2,7 @@
  * @fileoverview CLI (TUI) plugin: the session avatar in the sidebar.
  *
  * The server plugin owns the directory (who declared what); this side renders
- * it. The RPC contract is shared as a plain object, so no runtime plugin
+ * it. The RPC contract is shared as a plain object, so that no runtime plugin
  * module has to resolve in the TUI process.
  */
 
@@ -68,8 +68,8 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
           */}
           <image
             source={source()}
-            width={34}
-            height={17}
+            width={29}
+            height={15}
             fit="cover"
             protocol="blocks"
             onError={() => setFailed(true)}

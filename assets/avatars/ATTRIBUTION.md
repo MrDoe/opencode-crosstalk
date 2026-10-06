@@ -12,7 +12,7 @@ a gender pool (female / male) and a skin tone from the Personas palette. The res
 style options for every file are recorded in `manifest.json`.
 
 Generation parameters: DiceBear `personas` (`@dicebear/styles@10.6.0`), 256 px,
-circular pastel background (`borderRadius=50`, colors from the DiceBear pastel set),
-one of 50 role seeds, a gender pool (female = long-hair variants with no facial hair;
-male = short-hair variants with 65% facial hair), and a skin tone from the Personas
-palette. The pool was curated by hand after generation.
+transparent background, one of 50 role seeds, a gender pool (female = long-hair
+variants with no facial hair; male = short-hair variants with 65% facial hair),
+and a skin tone from the Personas palette. The pool was curated by hand after
+generation.

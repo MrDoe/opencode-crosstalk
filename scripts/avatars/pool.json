@@ -1,0 +1,649 @@
+﻿{
+    "style":  "personas",
+    "entries":  [
+                    {
+                        "file":  "01-explorer-eeb4a4.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "explorer",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "02-manager-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "manager",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "02-manager-e7a391.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "manager",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "03-coder-92594b.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "coder",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "03-coder-e5a07e.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "coder",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "05-analyst-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "analyst",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "05-analyst-eeb4a4.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "analyst",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "08-tester-d78774.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "tester",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "08-tester-eeb4a4.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "tester",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "10-builder-92594b.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "builder",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "10-builder-e5a07e.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "builder",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "13-researcher-92594b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "researcher",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "13-researcher-e7a391.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "researcher",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "14-writer-623d36.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "writer",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "14-writer-e5a07e.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "writer",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "16-fixer-e7a391.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "fixer",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "17-deployer-92594b.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "deployer",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "17-deployer-e5a07e.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "deployer",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "23-mentor-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "mentor",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "23-mentor-e7a391.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "mentor",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "25-pioneer-d78774.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "pioneer",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "26-strategist-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "strategist",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "31-gardener-e5a07e.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "gardener",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "33-simplifier-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "simplifier",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "33-simplifier-eeb4a4.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "simplifier",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "34-optimizer-92594b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "optimizer",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "34-optimizer-e7a391.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "optimizer",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "36-integrator-d78774.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "integrator",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "36-integrator-eeb4a4.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "integrator",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "37-compiler-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "compiler",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "37-compiler-e7a391.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "compiler",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "40-formatter-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "formatter",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "42-shipper-623d36.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "shipper",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "46-steward-623d36.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "steward",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "46-steward-d78774.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "steward",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "47-shepherd-b16a5b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "shepherd",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "47-shepherd-eeb4a4.png",
+                        "folder":  "female",
+                        "from":  "male",
+                        "seed":  "shepherd",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "48-tinkerer-92594b.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "tinkerer",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "50-wrangler-eeb4a4.png",
+                        "folder":  "female",
+                        "from":  "female",
+                        "seed":  "wrangler",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "01-explorer-d78774.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "explorer",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "06-planner-92594b.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "planner",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "06-planner-e7a391.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "planner",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "07-reviewer-623d36.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "reviewer",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "07-reviewer-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "reviewer",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "09-migrator-b16a5b.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "migrator",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "09-migrator-e7a391.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "migrator",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "11-debugger-623d36.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "debugger",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "11-debugger-d78774.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "debugger",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "12-designer-b16a5b.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "designer",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "12-designer-eeb4a4.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "designer",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "15-editor-d78774.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "editor",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "15-editor-eeb4a4.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "editor",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "16-fixer-b16a5b.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "fixer",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "18-scout-623d36.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "scout",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "18-scout-d78774.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "scout",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "19-architect-b16a5b.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "architect",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "19-architect-eeb4a4.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "architect",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "20-operator-92594b.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "operator",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "20-operator-e7a391.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "operator",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "21-coordinator-623d36.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "coordinator",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "21-coordinator-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "coordinator",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "22-auditor-d78774.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "auditor",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "22-auditor-eeb4a4.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "auditor",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "25-pioneer-623d36.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "pioneer",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "26-strategist-eeb4a4.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "strategist",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "28-librarian-623d36.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "librarian",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "28-librarian-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "librarian",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "30-tracker-b16a5b.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "tracker",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "30-tracker-e7a391.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "tracker",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "31-gardener-92594b.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "gardener",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "32-refactorer-623d36.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "refactorer",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "32-refactorer-d78774.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "refactorer",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "35-profiler-623d36.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "profiler",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "35-profiler-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "profiler",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "38-parser-92594b.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "parser",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "38-parser-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "parser",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "39-linter-623d36.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "linter",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "39-linter-d78774.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "linter",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "40-formatter-eeb4a4.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "formatter",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "41-patcher-92594b.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "patcher",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "41-patcher-e7a391.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "patcher",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "42-shipper-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "shipper",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "43-maintainer-d78774.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "maintainer",
+                        "skin":  "d78774"
+                    },
+                    {
+                        "file":  "43-maintainer-eeb4a4.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "maintainer",
+                        "skin":  "eeb4a4"
+                    },
+                    {
+                        "file":  "44-guardian-b16a5b.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "guardian",
+                        "skin":  "b16a5b"
+                    },
+                    {
+                        "file":  "44-guardian-e7a391.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "guardian",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "45-sentinel-92594b.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "sentinel",
+                        "skin":  "92594b"
+                    },
+                    {
+                        "file":  "45-sentinel-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "sentinel",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "48-tinkerer-e7a391.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "tinkerer",
+                        "skin":  "e7a391"
+                    },
+                    {
+                        "file":  "49-hacker-623d36.png",
+                        "folder":  "male",
+                        "from":  "female",
+                        "seed":  "hacker",
+                        "skin":  "623d36"
+                    },
+                    {
+                        "file":  "49-hacker-e5a07e.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "hacker",
+                        "skin":  "e5a07e"
+                    },
+                    {
+                        "file":  "50-wrangler-d78774.png",
+                        "folder":  "male",
+                        "from":  "male",
+                        "seed":  "wrangler",
+                        "skin":  "d78774"
+                    }
+                ]
+}
