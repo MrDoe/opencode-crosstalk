@@ -77,6 +77,39 @@ test("a status event for a session never seen created still registers it", () =>
   assert.equal(peer?.lastSeen, 42)
 })
 
+test("a peer that first appears without a location learns it from a later event", () => {
+  const { registry: reg } = registry()
+  // The session started before this plugin instance loaded, so its
+  // `session.created` was never seen and the first event carries no location.
+  reg.apply(event("session.status", { sessionID: "ses_late", status: { type: "busy" } }))
+  assert.equal(reg.get("ses_late")?.directory, undefined)
+
+  // Real server events carry a top-level directory on most types.
+  reg.apply({
+    type: "session.tool.called",
+    location: { directory: "/repo" },
+    data: { sessionID: "ses_late", id: "tool-1" },
+  })
+  assert.equal(reg.get("ses_late")?.directory, "/repo", "a later event heals the record")
+
+  reg.apply(event("session.idle", { sessionID: "ses_late" }))
+  assert.equal(reg.get("ses_late")?.directory, "/repo", "an event without a location keeps it")
+  assert.equal(reg.get("ses_late")?.projectID, undefined, "no session event but created/moved carries a project")
+})
+
+test("a healed directory is enough to pass strict location scope", () => {
+  const { registry: reg } = registry()
+  reg.apply(createdEvent("ses_self"))
+  reg.apply(event("session.status", { sessionID: "ses_late", status: { type: "busy" } }))
+
+  const before = reg.list({ selfID: "ses_self", scope: "location", strict: true }).map((peer) => peer.sessionID)
+  assert.ok(!before.includes("ses_late"), "unknown location cannot be addressed")
+
+  reg.apply({ type: "session.idle", location: { directory: "/repo" }, data: { sessionID: "ses_late" } })
+  const after = reg.list({ selfID: "ses_self", scope: "location", strict: true }).map((peer) => peer.sessionID)
+  assert.ok(after.includes("ses_late"), "once its directory is known it is in scope")
+})
+
 test("renamed, moved, and forked update the record they name", () => {
   const { registry: reg } = registry()
   reg.apply(createdEvent("ses_a", { title: "old" }))

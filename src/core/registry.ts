@@ -4,8 +4,10 @@
  *
  * The plugin context deliberately exposes no `session.list()` / `session.active`
  * (its session domain is a narrow `Pick` of the client API), so discovery is
- * built from `ctx.event.subscribe()`. Every event carries `{ type, location,
- * data }`, which is exactly the information a peer listing needs.
+ * built from `ctx.event.subscribe()`. Events arrive as `{ type, location, data }`.
+ * Most carry a top-level `location`, but no session event besides
+ * `session.created` and `session.moved` carries a project id — a peer that
+ * missed those two never learns its project from the stream alone.
  *
  * Liveness has two thresholds: past `staleAfterMs` a peer is still listed but
  * flagged, because an agent can spend minutes inside one model call without
@@ -148,11 +150,19 @@ export class Registry {
     if (event.type === "session.deleted") return this.delete(sessionID)
 
     const at = this.#timestamp(event)
+    const directory = directoryOf(event)
     // `ensure` is what creates a record, so the event's own directory has to be
     // passed in here — a second `ensure` call would find the record already
     // present and ignore the defaults.
-    const target = this.ensure(sessionID, { directory: directoryOf(event) })
+    const target = this.ensure(sessionID, { directory })
     target.lastSeen = at
+    // A record can be born on any event type: a session that started before the
+    // plugin loaded first shows up in `session.status`, not `session.created`.
+    // Real server events carry a top-level directory on most types and none of
+    // them carries a project, so every event that knows where the session runs
+    // refreshes it — and an event that does not must not clear what is known.
+    // `projectID` still only arrives with `session.created` / `session.moved`.
+    if (directory !== undefined) target.directory = directory
 
     switch (event.type) {
       case "session.created": {
