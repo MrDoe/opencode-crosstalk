@@ -140,6 +140,10 @@ export default Plugin.define({
       },
     })
 
+    // Declarations are rare but precious: snapshot them like event traffic
+    // instead of waiting for the next event to happen by.
+    const unsubscribePersist = mesh.subscribe(schedulePersist)
+
     const toolRegistration = await ctx.tool.transform((editor) => {
       registerTools(editor, { mesh, options })
     })
@@ -175,6 +179,7 @@ export default Plugin.define({
       controller.abort()
       await streaming
       unsubscribeRpc()
+      unsubscribePersist()
       if (rpcTimer) clearTimeout(rpcTimer)
       await briefingRegistration?.dispose()
       await rpcRegistration.dispose()

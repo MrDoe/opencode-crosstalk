@@ -663,28 +663,38 @@ export class Mesh {
   }
 
   /**
-   * Merge a snapshot back in. Live event data wins: a restored record is only
-   * kept for sessions the registry has not already seen, and restored claims
-   * are dropped when the same key is already held.
+   * Merge a snapshot back in. A session the live stream has already created
+   * keeps its freshness and only receives fields the stream never carried
+   * (declarations, project, directory); a session the registry has not seen is
+   * restored wholesale. Restored claims are dropped when the same key is
+   * already held.
    */
   restore(snapshot: MeshSnapshot): void {
     for (const peer of snapshot.peers) {
       if (!peer || typeof peer.sessionID !== "string") continue
-      if (this.registry.get(peer.sessionID)) continue
-      this.registry.ensure(peer.sessionID)
-      const restored = this.registry.get(peer.sessionID)
-      if (restored) {
-        restored.status = peer.status ?? "unknown"
-        restored.lastSeen = typeof peer.lastSeen === "number" ? peer.lastSeen : this.#clock.now()
-        if (peer.title !== undefined) restored.title = peer.title
-        if (peer.agent !== undefined) restored.agent = peer.agent
-        if (peer.model !== undefined) restored.model = peer.model
-        if (peer.parentID !== undefined) restored.parentID = peer.parentID
-        if (peer.projectID !== undefined) restored.projectID = peer.projectID
-        if (peer.directory !== undefined) restored.directory = peer.directory
-        if (peer.created !== undefined) restored.created = peer.created
-        if (peer.declared !== undefined) restored.declared = peer.declared
+      const live = this.registry.get(peer.sessionID)
+      if (live) {
+        if (live.title === undefined && peer.title !== undefined) live.title = peer.title
+        if (live.agent === undefined && peer.agent !== undefined) live.agent = peer.agent
+        if (live.model === undefined && peer.model !== undefined) live.model = peer.model
+        if (live.parentID === undefined && peer.parentID !== undefined) live.parentID = peer.parentID
+        if (live.projectID === undefined && peer.projectID !== undefined) live.projectID = peer.projectID
+        if (live.directory === undefined && peer.directory !== undefined) live.directory = peer.directory
+        if (live.created === undefined && peer.created !== undefined) live.created = peer.created
+        if (live.declared === undefined && peer.declared !== undefined) live.declared = peer.declared
+        continue
       }
+      const restored = this.registry.ensure(peer.sessionID)
+      restored.status = peer.status ?? "unknown"
+      restored.lastSeen = typeof peer.lastSeen === "number" ? peer.lastSeen : this.#clock.now()
+      if (peer.title !== undefined) restored.title = peer.title
+      if (peer.agent !== undefined) restored.agent = peer.agent
+      if (peer.model !== undefined) restored.model = peer.model
+      if (peer.parentID !== undefined) restored.parentID = peer.parentID
+      if (peer.projectID !== undefined) restored.projectID = peer.projectID
+      if (peer.directory !== undefined) restored.directory = peer.directory
+      if (peer.created !== undefined) restored.created = peer.created
+      if (peer.declared !== undefined) restored.declared = peer.declared
     }
     const held = new Set(this.claims.entries().map((claim) => claim.key))
     for (const claim of snapshot.claims) {

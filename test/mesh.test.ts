@@ -44,6 +44,66 @@ test("declare merges, leaving unmentioned fields alone, and refreshes activity",
   assert.equal(merged.view.lastSeen, clock.now(), "declaring counts as activity")
 })
 
+test("subscribe observes declarations and events", () => {
+  const { mesh } = createTestMesh()
+  let calls = 0
+  const stop = mesh.subscribe(() => {
+    calls += 1
+  })
+  mesh.applyEvent(createdEvent("ses_a"))
+  assert.equal(calls, 1)
+  mesh.declare("ses_a", { name: "Rita" })
+  assert.equal(calls, 2)
+  stop()
+  mesh.applyEvent(createdEvent("ses_b"))
+  assert.equal(calls, 2, "an unsubscribed listener stops hearing")
+})
+
+test("restore fills gaps on a record the live stream already created", () => {
+  const { mesh } = createTestMesh()
+  mesh.applyEvent(event("session.status", { sessionID: "ses_live" }))
+  assert.equal(mesh.registry.get("ses_live")?.projectID, undefined)
+
+  mesh.restore({
+    version: 1,
+    savedAt: 0,
+    peers: [
+      {
+        sessionID: "ses_live",
+        status: "idle",
+        lastSeen: 1,
+        projectID: "proj-1",
+        directory: "/repo",
+        title: "restored title",
+        declared: { name: "Rita", role: "coder" },
+      },
+    ],
+    claims: [],
+  })
+
+  const restored = mesh.registry.get("ses_live")
+  assert.equal(restored?.projectID, "proj-1", "the snapshot supplies what the stream never carried")
+  assert.equal(restored?.directory, "/repo")
+  assert.equal(restored?.title, "restored title")
+  assert.equal(restored?.declared?.name, "Rita")
+  assert.equal(restored?.status, "unknown", "live status is not overwritten by the snapshot")
+})
+
+test("restore keeps live fields when both sides have them", () => {
+  const { mesh } = createTestMesh()
+  mesh.applyEvent(createdEvent("ses_a", { title: "live title" }))
+  mesh.declare("ses_a", { name: "Live" })
+  mesh.restore({
+    version: 1,
+    savedAt: 0,
+    peers: [{ sessionID: "ses_a", status: "idle", lastSeen: 1, title: "stale title", declared: { name: "Stale" } }],
+    claims: [],
+  })
+  const peer = mesh.registry.get("ses_a")
+  assert.equal(peer?.title, "live title", "a live title is newer than the snapshot")
+  assert.equal(peer?.declared?.name, "Live")
+})
+
 test("send to a known peer delivers and records in their mailbox", async () => {
   const { mesh, deliverer } = createTestMesh()
   mesh.applyEvent(createdEvent("ses_self"))
