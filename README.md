@@ -107,12 +107,26 @@ A message is stored in the recipient's mailbox and, when the session is live,
 injected into its current turn — so the other agent finds out without anyone
 having to poll.
 
+### Talking to sessions by name
+
+Names are there for the user, too. Once the sessions declare themselves, you can
+route work in plain language — *"Talk to Ada about this first."* — and the agent
+you are talking to will address that session by name with
+`crosstalk_send { to: "Ada", … }`. A name is unique among the peers a session
+can see (a taken one is refused), shows up in `crosstalk_peers` and in the
+sidebar, and travels with every message, so the inbox always shows who is
+speaking.
+
 ### TUI avatars
 
 Sessions that declare themselves get a cartoon avatar in the OpenCode TUI
-sidebar, below their name and role. The avatar is picked from a bundled pool of
-92 characters (DiceBear *Personas*, CC BY 4.0 — see
-[`assets/avatars/ATTRIBUTION.md`](assets/avatars/ATTRIBUTION.md)):
+sidebar, with their name and role below it:
+
+![A session in the TUI sidebar: the block-art avatar above the name "Pixel" and the role "avatar-integrator"](assets/screenshot.png)
+
+The avatar is picked from a bundled pool of 92 characters (DiceBear *Personas*,
+CC BY 4.0 — see [`assets/avatars/ATTRIBUTION.md`](assets/avatars/ATTRIBUTION.md);
+browse the pool by opening `assets/avatars/index.html` in a browser):
 
 - `crosstalk_status { name: "Rita", role: "coder", avatar: "👩" }` — the emoji is
   a hint: 👩/👨 pick the character pool, and the skin tone is baked into the art.
@@ -294,7 +308,7 @@ and splits tools on `options.codemode === false` (direct) versus everything else
 
 ```sh
 npm install
-npm test          # 212 unit tests, no network, no server
+npm test          # 224 unit tests, no network, no server
 npm run typecheck
 npm run test:e2e  # live smoke test, needs OPENCODE_E2E=1 and a usable model
 npm run setup     # link the plugin in globally
