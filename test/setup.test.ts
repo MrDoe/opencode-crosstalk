@@ -11,6 +11,7 @@ interface FakeContext {
   events: ReturnType<typeof createEventStream>
   storage: ReturnType<typeof createFakeStorage>
   synthetic: Array<{ sessionID: string; text: string; delivery?: string; description?: string; metadata?: unknown }>
+  sessionGets: string[]
   hooks: Array<{ kind: string; handler: (event: Record<string, unknown>) => void }>
   rpc: {
     registered: Array<{
@@ -27,6 +28,7 @@ function fakeContext(options: unknown = undefined, storageOverrides?: Record<str
   const events = createEventStream()
   const storage = createFakeStorage(storageOverrides)
   const synthetic: FakeContext["synthetic"] = []
+  const sessionGets: string[] = []
   const hooks: FakeContext["hooks"] = []
   const rpc: FakeContext["rpc"] = { registered: [], emitted: [] }
   const disposed = { tools: 0, hooks: 0, rpc: 0 }
@@ -62,6 +64,16 @@ function fakeContext(options: unknown = undefined, storageOverrides?: Record<str
           },
         }
       },
+      async get(input: { sessionID: string }) {
+        sessionGets.push(input.sessionID)
+        return {
+          projectID: "proj-1",
+          location: { directory: "/repo" },
+          title: `enriched ${input.sessionID}`,
+          agent: "build",
+          time: { created: 123 },
+        }
+      },
     },
     event: events,
     storage: storage as unknown as StorageLike,
@@ -82,7 +94,7 @@ function fakeContext(options: unknown = undefined, storageOverrides?: Record<str
     },
   }
 
-  return { ctx, editor, events, storage, synthetic, hooks, rpc, disposed }
+  return { ctx, editor, events, storage, synthetic, sessionGets, hooks, rpc, disposed }
 }
 
 /** `setup` returns `void | Cleanup`; the plugin contract is that it is a function. */
@@ -339,6 +351,28 @@ test("the RPC directory exposes declared sessions", async () => {
   assert.equal(rita?.name, "Rita")
   assert.equal(rita?.role, "coder")
   assert.equal(rita?.avatar, "👩")
+  await fake.cleanup()
+})
+
+test("a peer that missed session.created is healed through session.get", async () => {
+  const fake = await setup()
+  // A status event alone creates a bare record: no project, no directory.
+  await emit(fake, { type: "session.status", data: { sessionID: "ses_late" } })
+  await fake.events.settle()
+
+  const registration = fake.rpc.registered[0]
+  const payload = (await registration?.handlers.directory?.()) as {
+    sessions: Array<{ sessionID: string; projectID?: string; directory?: string; title?: string }>
+  }
+  const healed = payload.sessions.find((session) => session.sessionID === "ses_late")
+  assert.equal(healed?.projectID, "proj-1")
+  assert.equal(healed?.directory, "/repo")
+  assert.equal(fake.sessionGets.length, 1, "the host is asked once per session")
+
+  // A later event must not trigger another read.
+  await emit(fake, { type: "session.status", data: { sessionID: "ses_late" } })
+  await fake.events.settle()
+  assert.equal(fake.sessionGets.length, 1)
   await fake.cleanup()
 })
 

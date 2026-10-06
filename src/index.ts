@@ -73,6 +73,12 @@ function briefing(peers: number, claims: number): string {
   ].join(" ")
 }
 
+/** The session id an event is about, when it carries one. */
+function eventSessionID(event: { data?: Readonly<Record<string, unknown>> }): string | undefined {
+  const value = event.data?.sessionID
+  return typeof value === "string" && value.length > 0 ? value : undefined
+}
+
 export default Plugin.define({
   id,
   async setup(ctx) {
@@ -130,10 +136,44 @@ export default Plugin.define({
     }
 
     const controller = new AbortController()
+
+    // A session that started before the plugin loaded never emits
+    // `session.created` at us, so its record would stay without a project and
+    // be unaddressable under strict scope. Heal each such record once by
+    // reading it from the host.
+    const enrichAttempted = new Set<string>()
+    const enrichSession = async (sessionID: string) => {
+      try {
+        const info = await ctx.session.get({ sessionID: sessionID as never })
+        if (controller.signal.aborted) return
+        mesh.registry.update(sessionID, {
+          projectID: info.projectID,
+          directory: info.location?.directory,
+          title: info.title,
+          agent: info.agent,
+          parentID: info.parentID,
+          created: info.time?.created,
+        })
+        schedulePersist()
+        scheduleRpc()
+      } catch {
+        // A session owned by another location may not be readable; leave it.
+      }
+    }
+
     const streaming = pumpEvents(ctx.event, controller.signal, {
       onEvent: (event) => {
         mesh.applyEvent(event)
         schedulePersist()
+        const sessionID = eventSessionID(event)
+        if (
+          sessionID !== undefined &&
+          mesh.registry.get(sessionID)?.projectID === undefined &&
+          !enrichAttempted.has(sessionID)
+        ) {
+          enrichAttempted.add(sessionID)
+          void enrichSession(sessionID)
+        }
       },
       onError: (error) => {
         console.warn(`[crosstalk] event stream: ${String(error)}`)
