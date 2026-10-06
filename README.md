@@ -120,6 +120,20 @@ sidebar, below their name and role. The avatar is picked from a bundled pool of
   `reviewer`, `explorer`, …); otherwise the name hashes to a stable one, so a
   session keeps its avatar across reloads and restarts.
 - Sessions that never declare anything simply show no avatar.
+- Every avatar also carries an **emoticon** — one curated glyph for its role
+  (`coder` → 💻, `librarian` → 📚, 46 roles), chosen from tools, objects, and
+  people and never a smiley. It is derived from the manifest entry, so the same
+  character always shows the same glyph.
+- That glyph is shown beside the avatar's name in the sidebar **and** written
+  into the session title, because the tab header has no slot a plugin can render
+  into — its label *is* the title. `💻 Refactor the session store`.
+
+The title write is deliberately narrow: only a session that declared a name, and
+only one in the TUI's own directory or below it, is retitled; the write is
+idempotent (a title already carrying its glyph is left alone, so the
+`session.renamed` event it causes is a no-op), a stale glyph is replaced rather
+than stacked, and an emoji you typed yourself is never stripped. Renames are
+durable server state, so a decorated title outlives the TUI that wrote it.
 
 The server plugin exposes the session directory over RPC (a `directory` method
 plus a debounced `changed` event); the CLI plugin in `tui.ts` / `src/tui/`

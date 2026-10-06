@@ -1,8 +1,16 @@
 /**
- * @fileoverview Avatar selection: map a session to one of the bundled Personas.
+ * @fileoverview Avatar selection: map a session to one of the bundled Personas,
+ * and give each Persona the emoticon it is shown by.
  *
  * Pure and host-free so it is unit-testable: the TUI plugin supplies the
- * manifest entries and the directory entry, this file decides the file.
+ * manifest entries and the directory entry, this file decides the file, the
+ * emoticon, and the title the emoticon is written into.
+ *
+ * An emoticon belongs to the avatar, not the session: it is derived from the
+ * manifest entry, so a session shows the glyph of the Persona it was handed and
+ * two TUI processes agree without negotiating. The glyph set is curated —
+ * tools, objects, and people only, never a smiley — because it has to read at a
+ * glance in a tab header as well as beside the portrait.
  */
 
 import type { DirectoryEntry } from "../core/directory.ts"
@@ -63,4 +71,102 @@ export function chooseAvatar(
   const byRole = role ? pooled.filter((entry) => entry.role.toLowerCase() === role) : []
   const candidates = byRole.length > 0 ? byRole : pooled.length > 0 ? pooled : entries
   return candidates[hash(session.name ?? session.sessionID) % candidates.length]
+}
+
+/**
+ * One emoticon per Persona role, curated from tools, objects, and people.
+ *
+ * Roles with several entries in the same pool carry alternates so two sessions
+ * wearing the same trade do not collapse into one glyph; which alternate an
+ * avatar gets is decided by its file name, so it never changes between renders.
+ * A role missing from this table falls back to `FALLBACK_EMOTICONS`, which keeps
+ * a regenerated manifest working before anyone curates the new roles.
+ */
+export const EMOTICONS: Record<string, readonly string[]> = {
+  analyst: ["📊", "📉"],
+  architect: ["🏛️", "📐"],
+  auditor: ["🧮", "🧾"],
+  builder: ["🧱", "🪚"],
+  coder: ["💻", "⌨️", "🖥️"],
+  compiler: ["🛠️", "🗜️"],
+  coordinator: ["📡", "🧭"],
+  debugger: ["🪛", "🔦"],
+  deployer: ["🚀", "📤"],
+  designer: ["🎨", "📐"],
+  editor: ["📓", "✂️"],
+  explorer: ["🧭", "🗺️"],
+  fixer: ["🔧", "🩹"],
+  formatter: ["📐", "📏"],
+  gardener: ["🪴", "🧤"],
+  guardian: ["🛡️", "🔒"],
+  hacker: ["🕶️", "💻"],
+  integrator: ["🔗", "🧲"],
+  librarian: ["📚", "🗃️"],
+  linter: ["🧹", "🚨"],
+  maintainer: ["🛢️", "🔧"],
+  manager: ["💼", "🗂️"],
+  mentor: ["🎓", "📖"],
+  migrator: ["🚚", "🧳"],
+  operator: ["🎛️", "🕹️"],
+  optimizer: ["⚙️", "🛢️"],
+  parser: ["🧩", "🔤"],
+  patcher: ["🩹", "🧵"],
+  pioneer: ["🏔️", "⛺"],
+  planner: ["📅", "🗒️"],
+  profiler: ["📈", "⏱️"],
+  refactorer: ["🔨", "🏗️"],
+  researcher: ["🔬", "📜"],
+  reviewer: ["🔍", "🧐"],
+  scout: ["🔭", "📡"],
+  sentinel: ["🚨", "📹"],
+  shipper: ["📦", "🛳️"],
+  shepherd: ["🧶", "🪢"],
+  simplifier: ["✂️", "🧹"],
+  strategist: ["🎯", "♟️"],
+  steward: ["🗂️", "🧾"],
+  tester: ["🧪", "🧫"],
+  tinkerer: ["🔩", "🪛"],
+  tracker: ["📍", "📌"],
+  wrangler: ["🎣", "🪝"],
+  writer: ["✒️", "📝"],
+}
+
+/** For manifest roles this table has not caught up with yet. */
+export const FALLBACK_EMOTICONS: readonly string[] = ["🧰", "🧩", "📦", "🧭"]
+
+const MANAGED_GLYPHS: readonly string[] = [
+  ...new Set([...Object.values(EMOTICONS).flat(), ...FALLBACK_EMOTICONS]),
+].sort((a, b) => b.length - a.length)
+
+/** The emoticon one avatar was given. Always defined: an unknown role degrades. */
+export function emoticonFor(entry: AvatarEntry | undefined): string {
+  const candidates = entry ? (EMOTICONS[entry.role.toLowerCase()] ?? FALLBACK_EMOTICONS) : FALLBACK_EMOTICONS
+  return candidates[hash(entry?.file ?? "crosstalk") % candidates.length] ?? FALLBACK_EMOTICONS[0]!
+}
+
+/**
+ * Drop a leading emoticon this plugin manages.
+ *
+ * Only glyphs from the curated table count, so a glyph the user typed into a
+ * title themselves is left alone.
+ */
+export function stripEmoticon(title: string): string {
+  const lead = title.replace(/^\s+/, "")
+  for (const glyph of MANAGED_GLYPHS) {
+    if (lead.startsWith(glyph)) return lead.slice(glyph.length).replace(/^[\s\u00a0]+/, "")
+  }
+  return title
+}
+
+/**
+ * The tab-header title for one session, or `undefined` when nothing should be
+ * written — either there is no title to decorate or it is already correct, so a
+ * caller can compare instead of guessing and the write stays idempotent.
+ */
+export function titleWithEmoticon(title: string | undefined, glyph: string | undefined): string | undefined {
+  if (title === undefined || glyph === undefined) return undefined
+  const base = stripEmoticon(title)
+  if (base.length === 0) return undefined
+  const wanted = `${glyph} ${base}`
+  return wanted === title ? undefined : wanted
 }

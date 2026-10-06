@@ -10,8 +10,9 @@ import { readFileSync } from "node:fs"
 import { Plugin, usePlugin } from "@opencode/plugin/tui"
 import { Show, createMemo, createSignal } from "solid-js"
 import type { DirectoryEntry, DirectoryPayload } from "../core/directory.ts"
+import { normalizeResource } from "../core/claims.ts"
 import { CrosstalkRpc } from "../rpc.ts"
-import { chooseAvatar, type AvatarEntry } from "./avatar.ts"
+import { chooseAvatar, emoticonFor, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
 
 const manifestUrl = new URL("../../assets/avatars/manifest.json", import.meta.url)
 
@@ -39,6 +40,18 @@ function sourceFor(entry: AvatarEntry): URL {
 function asPayload(value: unknown): DirectoryPayload {
   const sessions = (value as { sessions?: unknown } | undefined)?.sessions
   return { sessions: Array.isArray(sessions) ? (sessions as DirectoryEntry[]) : [] }
+}
+
+/**
+ * Whether a session sits in this TUI's directory or below it, compared with the
+ * same normalisation claims use so a Windows worktree does not look like a
+ * different place because of a separator or a letter case.
+ */
+function inPlace(candidate: string | undefined, home: string): boolean {
+  if (candidate === undefined) return false
+  const base = normalizeResource(home)
+  const other = normalizeResource(candidate)
+  return other === base || other.startsWith(`${base}/`)
 }
 
 function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayload; entries: readonly AvatarEntry[] }) {
@@ -74,7 +87,7 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
             protocol="blocks"
             onError={() => setFailed(true)}
           />
-          <text fg={context.theme.text.base}>{session()?.name ?? "crosstalk"}</text>
+          <text fg={context.theme.text.base}>{`${emoticonFor(picked())} ${session()?.name ?? "crosstalk"}`}</text>
           <text fg={context.theme.text.muted}>{session()?.role ?? ""}</text>
           <Show when={failed()}>
             <text fg={context.theme.text.muted}>[image failed]</text>
@@ -90,12 +103,44 @@ export default Plugin.define({
   async setup(context) {
     const entries = loadEntries()
     const [directory, setDirectory] = createSignal<DirectoryPayload>({ sessions: [] })
-    const apply = (payload: unknown) => {
-      setDirectory(asPayload(payload))
-    }
-
     const rpc = context.client.rpc(CrosstalkRpc)
     const location = context.location ?? context.data.location.default()
+
+    /**
+     * The tab header has no slot a plugin can render into — its label is the
+     * session title — so the emoticon is written there instead.
+     *
+     * Deliberately narrow: only a session that declared a crosstalk name, and
+     * only one in this TUI's directory or below it, may be renamed; `titleWithEmoticon`
+     * returns nothing to write once the title already carries the glyph, so the
+     * `session.renamed` event this triggers comes back as a no-op instead of a
+     * loop. Anything the user titled themselves is left as they wrote it.
+     */
+    const written = new Map<string, string>()
+    async function decorate(payload: DirectoryPayload): Promise<void> {
+      const home = location?.directory
+      if (home === undefined) return
+      for (const entry of payload.sessions) {
+        if (entry.name === undefined || !inPlace(entry.directory, home)) continue
+        const wanted = titleWithEmoticon(entry.title, emoticonFor(chooseAvatar(entries, entry)))
+        if (wanted === undefined || written.get(entry.sessionID) === wanted) continue
+        written.set(entry.sessionID, wanted)
+        try {
+          await context.client.session.update({ sessionID: entry.sessionID, title: wanted })
+        } catch {
+          // Gone, or not ours to rename: forget the attempt and let the next
+          // directory update retry it.
+          written.delete(entry.sessionID)
+        }
+      }
+    }
+
+    const apply = (payload: unknown) => {
+      const next = asPayload(payload)
+      setDirectory(next)
+      void decorate(next)
+    }
+
     try {
       apply(await rpc.directory({}, { location }))
     } catch {
