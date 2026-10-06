@@ -36,19 +36,23 @@ npm run test:e2e    # spawns a real opencode + real model calls; see below
 | Path | Role |
 | --- | --- |
 | `index.ts` | Host directory entrypoint — re-exports `src/index.ts`. Required: the host resolves plugin directories by a root `index.ts`/`index.js` and ignores `package.json` `main`/`exports`; a directory without one is dropped silently. |
-| `src/index.ts` | **Only** runtime importer of `@opencode/plugin` (`Plugin.define`). Wires mesh + event pump + tools + briefing hook, and returns the cleanup that undoes all of it. |
+| `src/index.ts` | **The server-side** runtime importer of `@opencode/plugin` (`Plugin.define`). Wires mesh + event pump + tools + briefing hook + the crosstalk RPC, and returns the cleanup that undoes all of it. |
 | `src/core/` | Host-free coordination logic. `mesh.ts` is the façade over `Registry` (presence), `Mailbox`, `ClaimTable`; also the package's `./core` export. |
 | `src/tools/` | The six `crosstalk_*` tool definitions. `args.ts` is the input validator, `types.ts` the shared plumbing. |
+| `src/rpc.ts` | The RPC contract shared by the server and CLI plugins — a plain object with a type-only import, so neither process needs a runtime plugin module for it. |
+| `tui.ts` | Host entrypoint for the CLI (TUI) plugin — re-exports `src/tui/index.tsx`. The host discovers a TUI entrypoint beside the server entry (`tui.ts` next to `index.ts`). |
+| `src/tui/` | CLI plugin. `index.tsx` renders the sidebar avatar; `avatar.ts` is the pure role/pool/hash selection. |
+| `assets/avatars/` | Curated Personas PNG pool (92), `manifest.json`, `ATTRIBUTION.md` (CC BY 4.0). |
 | `src/config.ts` | `parseOptions` + `DEFAULTS`. |
 | `src/events.ts`, `src/deliverer.ts`, `src/storage.ts` | Adapters over `ctx.event`, `ctx.session.synthetic`, `ctx.storage`, each behind a narrow structural interface. |
 | `test/helpers/fakes.ts` | The entire test harness. |
 | `scripts/setup.mjs` | Global installer (links into `~/.opencode/plugins/`). Plain JS, deliberately outside `tsconfig.json`'s `include`, so it is not typechecked. |
 
 `src/core/**` must keep importing nothing from `@opencode/plugin`. Only
-`src/index.ts` (runtime), `src/tools/types.ts`, and `src/tools/index.ts` (both
-`import type`) touch the package. Keep the host behind `EventStream`,
-`StorageLike`, `SessionLike`, and `Deliverer` — that is what makes core directly
-testable.
+`src/index.ts` and `src/tui/index.tsx` (runtime, server and CLI),
+`src/tools/types.ts`, `src/tools/index.ts`, and `src/rpc.ts` (all `import type`)
+touch the package. Keep the host behind `EventStream`, `StorageLike`,
+`SessionLike`, and `Deliverer` — that is what makes core directly testable.
 
 ## Tool calling
 
@@ -72,6 +76,9 @@ never fires.
 - **Identity comes from `context.sessionID`, never from input.** No tool takes a
   "who am I" argument. Keep it that way — it is what stops one session releasing
   another's leases or reading another's mail.
+- **The `avatar` hint is presentation-only.** `crosstalk_status` accepts an
+  optional emoji that lands in `Declared` like any other field; only the TUI
+  plugin interprets it (character pool). Core never resolves or validates it.
 - **Bad input is returned, not thrown.** `run()` turns an `ArgError` into
   `crosstalk: …` content the model can correct itself from, and cross-field rules
   (`for: "peer_idle"` needs `sessionID`) are an early `return` of a message.
@@ -117,6 +124,20 @@ never fires.
   George…"); it lives in `Declared` and travels on messages as `fromName`.
   Uniqueness is enforced case-insensitively among the *visible* peers, and a
   taken name is refused without touching the rest of the declaration.
+- **The TUI plugin talks to the server plugin over RPC, not storage.** The
+  server registers the `crosstalk` RPC (`directory` method + debounced `changed`
+  event) in `src/index.ts`; the CLI plugin calls it **location-scoped**
+  (`rpc.directory({}, { location })`) and drops events from other locations.
+  Keep `sessionSchema` in `src/rpc.ts` in step with `DirectoryEntry` —
+  `additionalProperties: false` turns drift into a runtime error.
+- **Avatar images render as blocks on purpose.** `sidebar.content` sits inside a
+  scrollbox and the terminal we target (VS Code) announces sixel but never
+  paints OpenTUI's payload; `protocol="blocks"` is the portable path. Only switch
+  to `auto` for kitty-graphics terminals.
+- **The avatar pool is curated art with a manifest, not runtime-generated.**
+  `src/tui/avatar.ts` maps declared role → seed, declared emoji → pool, name →
+  stable hash; `assets/avatars/manifest.json` names the files. Regeneration
+  parameters live in `assets/avatars/ATTRIBUTION.md`.
 - **Communication is walled to provably same-project sessions.** Listing is
   permissive (unknown-location peers still show), but sends, role/`all`
   broadcasts, `crosstalk_wait`, and injection retries resolve through
@@ -147,6 +168,9 @@ never fires.
 - `node:test` + `node:assert/strict`. `test/helpers/fakes.ts` provides the manual
   clock, fake storage, push-driven event stream (`push()` then `await settle()`),
   recording deliverer, and fake tool editor. No test needs a running server.
+- The CLI-side avatar selection is pure (`src/tui/avatar.ts`, tested in
+  `test/tui-avatar.test.ts`); `test/setup.test.ts` fakes the RPC domain and
+  asserts it is registered and disposed.
 - **Time is injected.** `createTestMesh()` uses a manual clock and `pollMs: 1`.
   Timeout paths need `realClock: true` — the barrier waits measure elapsed time
   with the injected clock while sleeping on real timers, so a manual clock never
@@ -188,6 +212,9 @@ never fires.
   directory`) and that directory still needs the root entry.
 - Plugin loading is **per location**: the plugin loads when a session in that
   location activates, not at server start.
+- **The CLI plugin is discovered beside the server entry** (root `tui.ts`) and
+  hot-reloads when the file changes, so TUI iterations do not need a restart.
+  The server plugin re-activates per session activation.
 - Per project, point `opencode.jsonc` at the checkout with
   `"plugins": ["../opencode-crosstalk"]`, or symlink/copy the package into
   `<project>/.opencode/plugins/`.

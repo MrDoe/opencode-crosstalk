@@ -20,9 +20,11 @@
 import { Plugin } from "@opencode/plugin"
 import { parseOptions } from "./config.ts"
 import { systemClock } from "./core/clock.ts"
+import { directoryPayload } from "./core/directory.ts"
 import { Mesh } from "./core/mesh.ts"
 import { createSessionDeliverer, type SessionLike } from "./deliverer.ts"
 import { pumpEvents } from "./events.ts"
+import { CrosstalkRpc } from "./rpc.ts"
 import { MeshStore, type StorageLike } from "./storage.ts"
 import { registerTools } from "./tools/index.ts"
 
@@ -31,6 +33,9 @@ export const id = "opencode.crosstalk"
 
 /** Debounce window for snapshot writes triggered by event traffic. */
 const PERSIST_DEBOUNCE_MS = 2_000
+
+/** Debounce window for RPC directory pushes triggered by mesh mutations. */
+const RPC_DEBOUNCE_MS = 500
 
 /**
  * Bridge the real session domain to the narrow shape the deliverer needs.
@@ -148,10 +153,31 @@ export default Plugin.define({
         })
       : undefined
 
+    // The TUI plugin reads this directory over RPC. Pushes are debounced so a
+    // chatty event stream does not become a chatty channel.
+    const rpcRegistration = await ctx.rpc.register(CrosstalkRpc, {
+      directory: async () => directoryPayload(mesh),
+    })
+    let rpcTimer: ReturnType<typeof setTimeout> | undefined
+    const scheduleRpc = () => {
+      if (rpcTimer) return
+      rpcTimer = setTimeout(() => {
+        rpcTimer = undefined
+        void rpcRegistration.events.emit("changed", directoryPayload(mesh)).catch((error) => {
+          console.warn(`[crosstalk] could not emit directory update: ${String(error)}`)
+        })
+      }, RPC_DEBOUNCE_MS)
+      rpcTimer.unref?.()
+    }
+    const unsubscribeRpc = mesh.subscribe(scheduleRpc)
+
     return async () => {
       controller.abort()
       await streaming
+      unsubscribeRpc()
+      if (rpcTimer) clearTimeout(rpcTimer)
       await briefingRegistration?.dispose()
+      await rpcRegistration.dispose()
       await toolRegistration.dispose()
       if (persistTimer) clearTimeout(persistTimer)
       if (store) {

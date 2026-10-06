@@ -4,6 +4,8 @@
     "lib": ["ES2023"],
     "module": "Preserve",
     "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
     "types": ["node"],
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
@@ -18,5 +20,5 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "test", "index.ts"]
+  "include": ["src", "test", "index.ts", "tui.ts"]
 }

@@ -23,6 +23,11 @@ export interface Declared {
   goal?: string
   workingOn?: string[]
   note?: string
+  /**
+   * Optional avatar hint (an emoji such as `👩` or `👨`) the TUI uses to pick
+   * the character pool. The concrete artwork is chosen by the TUI plugin.
+   */
+  avatar?: string
   updatedAt?: number
 }
 

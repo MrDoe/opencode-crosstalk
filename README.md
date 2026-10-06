@@ -107,6 +107,28 @@ A message is stored in the recipient's mailbox and, when the session is live,
 injected into its current turn — so the other agent finds out without anyone
 having to poll.
 
+### TUI avatars
+
+Sessions that declare themselves get a cartoon avatar in the OpenCode TUI
+sidebar, below their name and role. The avatar is picked from a bundled pool of
+92 characters (DiceBear *Personas*, CC BY 4.0 — see
+[`assets/avatars/ATTRIBUTION.md`](assets/avatars/ATTRIBUTION.md)):
+
+- `crosstalk_status { name: "Rita", role: "coder", avatar: "👩" }` — the emoji is
+  a hint: 👩/👨 pick the character pool, and the skin tone is baked into the art.
+- The declared role picks the character when it matches a pool seed (`coder`,
+  `reviewer`, `explorer`, …); otherwise the name hashes to a stable one, so a
+  session keeps its avatar across reloads and restarts.
+- Sessions that never declare anything simply show no avatar.
+
+The server plugin exposes the session directory over RPC (a `directory` method
+plus a debounced `changed` event); the CLI plugin in `tui.ts` / `src/tui/`
+renders it, location-scoped, into `sidebar.content`. The image uses OpenTUI's
+**block** renderer on purpose: `sidebar.content` sits inside a scrollbox and the
+terminal we target (VS Code) announces sixel support but never paints the
+payload. On a kitty-graphics terminal, switching `protocol` in
+`src/tui/index.tsx` from `blocks` to `auto` gives crisp pixels.
+
 ### Drop-in AGENTS.md snippet
 
 Copy this block into a project's `AGENTS.md` to teach its sessions how to
@@ -258,7 +280,7 @@ and splits tools on `options.codemode === false` (direct) versus everything else
 
 ```sh
 npm install
-npm test          # 204 unit tests, no network, no server
+npm test          # 212 unit tests, no network, no server
 npm run typecheck
 npm run test:e2e  # live smoke test, needs OPENCODE_E2E=1 and a usable model
 npm run setup     # link the plugin in globally
@@ -269,9 +291,11 @@ provider cannot serve the request, so a credits problem never looks like a
 plugin regression. Point it at a specific model with `OPENCODE_E2E_MODEL`.
 
 `src/core` imports nothing from OpenCode: the presence registry, mailboxes, and
-claim table take an injected clock and are tested directly. `src/index.ts` is
-the only place that talks to the host. `scripts/setup.mjs` is plain JavaScript
-and sits outside `tsconfig.json`, so it is not part of the typecheck.
+claim table take an injected clock and are tested directly. `src/index.ts`
+(server) and `src/tui/index.tsx` (CLI) are the only places that talk to the
+host; `src/rpc.ts` is the shared contract and imports only types. `scripts/setup.mjs`
+is plain JavaScript and sits outside `tsconfig.json`, so it is not part of the
+typecheck.
 
 ## License
 

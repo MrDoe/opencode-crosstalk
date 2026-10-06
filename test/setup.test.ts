@@ -12,7 +12,14 @@ interface FakeContext {
   storage: ReturnType<typeof createFakeStorage>
   synthetic: Array<{ sessionID: string; text: string; delivery?: string; description?: string; metadata?: unknown }>
   hooks: Array<{ kind: string; handler: (event: Record<string, unknown>) => void }>
-  disposed: { tools: number; hooks: number }
+  rpc: {
+    registered: Array<{
+      definition: { id: string }
+      handlers: Record<string, (input?: unknown, context?: unknown) => unknown>
+    }>
+    emitted: Array<{ name: string; data: unknown }>
+  }
+  disposed: { tools: number; hooks: number; rpc: number }
 }
 
 function fakeContext(options: unknown = undefined, storageOverrides?: Record<string, unknown>): FakeContext {
@@ -21,7 +28,8 @@ function fakeContext(options: unknown = undefined, storageOverrides?: Record<str
   const storage = createFakeStorage(storageOverrides)
   const synthetic: FakeContext["synthetic"] = []
   const hooks: FakeContext["hooks"] = []
-  const disposed = { tools: 0, hooks: 0 }
+  const rpc: FakeContext["rpc"] = { registered: [], emitted: [] }
+  const disposed = { tools: 0, hooks: 0, rpc: 0 }
 
   const ctx = {
     app: { name: "opencode", version: "2.0.16", channel: "dev" },
@@ -57,9 +65,24 @@ function fakeContext(options: unknown = undefined, storageOverrides?: Record<str
     },
     event: events,
     storage: storage as unknown as StorageLike,
+    rpc: {
+      async register(definition: { id: string }, handlers: Record<string, (input?: unknown, context?: unknown) => unknown>) {
+        rpc.registered.push({ definition, handlers })
+        return {
+          events: {
+            async emit(name: string, data: unknown) {
+              rpc.emitted.push({ name, data })
+            },
+          },
+          async dispose() {
+            disposed.rpc += 1
+          },
+        }
+      },
+    },
   }
 
-  return { ctx, editor, events, storage, synthetic, hooks, disposed }
+  return { ctx, editor, events, storage, synthetic, hooks, rpc, disposed }
 }
 
 /** `setup` returns `void | Cleanup`; the plugin contract is that it is a function. */
@@ -286,6 +309,7 @@ test("cleanup disposes the tools and the hook, and stops consuming events", asyn
 
   assert.equal(fake.disposed.tools, 1)
   assert.equal(fake.disposed.hooks, 1)
+  assert.equal(fake.disposed.rpc, 1)
   assert.equal(fake.editor.added.length, 0, "tools are removed from the catalog")
   assert.throws(() => fake.editor.byName("peers"), /was not registered/)
 
@@ -293,6 +317,29 @@ test("cleanup disposes the tools and the hook, and stops consuming events", asyn
   fake.events.push({ type: "session.created", data: { sessionID: "ses_late" } })
   await fake.events.settle()
   assert.equal(fake.storage.data.has("crosstalk/proj-1"), true, "the final snapshot is written")
+})
+
+test("the RPC directory exposes declared sessions", async () => {
+  const fake = await setup()
+  await emit(fake, {
+    type: "session.created",
+    data: { sessionID: "ses_a", projectID: "proj-1", location: { directory: "/repo" }, title: "one" },
+  })
+  await fake.editor.byName("status").execute(
+    { name: "Rita", role: "coder", avatar: "👩" },
+    { sessionID: "ses_a" as never, signal: new AbortController().signal, progress: async () => {} } as never,
+  )
+
+  const registration = fake.rpc.registered[0]
+  assert.equal(registration?.definition.id, "crosstalk")
+  const payload = (await registration?.handlers.directory?.()) as {
+    sessions: Array<{ sessionID: string; name?: string; role?: string; avatar?: string }>
+  }
+  const rita = payload.sessions.find((session) => session.sessionID === "ses_a")
+  assert.equal(rita?.name, "Rita")
+  assert.equal(rita?.role, "coder")
+  assert.equal(rita?.avatar, "👩")
+  await fake.cleanup()
 })
 
 test("persist: false leaves storage untouched", async () => {

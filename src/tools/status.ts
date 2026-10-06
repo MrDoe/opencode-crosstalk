@@ -35,6 +35,11 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
           description: "Files or areas you expect to touch, e.g. src/auth/session.ts",
         },
         note: { type: "string", description: "Anything peers should know (a blocker, a hand-off)" },
+        avatar: {
+          type: "string",
+          description:
+            'Optional avatar hint for the TUI, e.g. an emoji like "👩" or "👨" that picks the character pool',
+        },
       },
       additionalProperties: false,
     }),
@@ -48,11 +53,12 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         const role = readString(input, "role", { max: 64 })
         const goal = readString(input, "goal", { max: 400 })
         const note = readString(input, "note", { max: 400 })
+        const avatar = readString(input, "avatar", { max: 32 })
         const workingOn = readStringArray(input, "workingOn", { max: 32, maxLength: 200 })
 
         const declared =
-          name || role || goal || note || workingOn
-            ? deps.mesh.declare(selfID, { name, role, goal, note, workingOn })
+          name || role || goal || note || avatar || workingOn
+            ? deps.mesh.declare(selfID, { name, role, goal, note, avatar, workingOn })
             : { view: deps.mesh.view(selfID) }
         if (declared.nameConflict) {
           return (

@@ -16,11 +16,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./core": "./src/core/mesh.ts"
+    "./core": "./src/core/mesh.ts",
+    "./rpc": "./src/rpc.ts",
+    "./tui": "./tui.ts"
   },
   "files": [
     "src",
     "index.ts",
+    "tui.ts",
+    "assets",
     "README.md"
   ],
   "scripts": {
@@ -38,7 +42,10 @@
     "@opencode/plugin": ">=2.0.0"
   },
   "devDependencies": {
+    "@opentui/core": "^0.5.10",
+    "@opentui/solid": "^0.5.10",
     "@types/node": "^22.20.0",
+    "solid-js": "^1.9.12",
     "typescript": "^5.9.3"
   },
   "engines": {

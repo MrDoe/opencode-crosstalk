@@ -138,6 +138,9 @@ export class Mesh {
    */
   readonly #pendingInjection = new Map<string, CrosstalkMessage[]>()
 
+  /** Mesh-mutation observers (the RPC bridge); a listener must never throw. */
+  readonly #listeners = new Set<() => void>()
+
   constructor(deps: MeshDeps) {
     this.options = deps.options
     this.#clock = deps.clock ?? systemClock
@@ -162,10 +165,34 @@ export class Mesh {
     return this.#clock.now()
   }
 
+  /**
+   * Observe declarations and presence changes. The RPC bridge subscribes so it
+   * can push directory updates without polling.
+   */
+  subscribe(listener: () => void): () => void {
+    this.#listeners.add(listener)
+    return () => {
+      this.#listeners.delete(listener)
+    }
+  }
+
+  #notify(): void {
+    for (const listener of this.#listeners) {
+      try {
+        listener()
+      } catch {
+        // A broken observer must never break a tool call.
+      }
+    }
+  }
+
   /** Fold a server event in and evict lapsed peers. */
   applyEvent(event: CrosstalkEvent): boolean {
     const applied = this.registry.apply(event)
-    if (applied) this.registry.prune(this.#clock.now())
+    if (applied) {
+      this.registry.prune(this.#clock.now())
+      this.#notify()
+    }
     return applied
   }
 
@@ -240,11 +267,13 @@ export class Mesh {
       role: declared.role ?? previous?.role,
       goal: declared.goal ?? previous?.goal,
       note: declared.note ?? previous?.note,
+      avatar: declared.avatar ?? previous?.avatar,
       workingOn: declared.workingOn ?? previous?.workingOn,
       updatedAt: this.#clock.now(),
     }
     peer.declared = merged
     peer.lastSeen = this.#clock.now()
+    this.#notify()
     return { view: this.view(id) }
   }
 
