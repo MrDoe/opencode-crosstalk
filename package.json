@@ -5,6 +5,14 @@
   "type": "module",
   "license": "MIT",
   "author": "Christoph Döllinger <christoph@christoph.cx>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrDoe/opencode-crosstalk.git"
+  },
+  "homepage": "https://github.com/MrDoe/opencode-crosstalk#readme",
+  "bugs": {
+    "url": "https://github.com/MrDoe/opencode-crosstalk/issues"
+  },
   "keywords": [
     "opencode",
     "opencode-plugin",
@@ -36,10 +44,10 @@
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {
-    "@opencode/plugin": ">=2.0.0"
+    "@opencode/plugin": "^2.0.0"
   },
   "peerDependencies": {
-    "@opencode/plugin": ">=2.0.0"
+    "@opencode/plugin": "^2.0.0"
   },
   "devDependencies": {
     "@opentui/core": "^0.5.10",
