@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import plugin, { id as pluginId } from "../src/index.ts"
+import { SNAPSHOT_VERSION } from "../src/core/mesh.ts"
 import { createEventStream, createFakeEditor, createFakeStorage } from "./helpers/fakes.ts"
 import type { CrosstalkEvent } from "../src/core/registry.ts"
 import type { StorageLike } from "../src/storage.ts"
@@ -297,7 +298,7 @@ test("the briefing is added only when there is something to say", async () => {
 
 test("a snapshot on disk is restored into a fresh mesh", async () => {
   const snapshot = {
-    version: 1,
+    version: SNAPSHOT_VERSION,
     savedAt: 0,
     peers: [{ sessionID: "ses_old", status: "running" as const, lastSeen: Date.now(), title: "restored" }],
     claims: [{ key: "/repo/src/a.ts", raw: "src/a.ts", holder: "ses_old", acquired: 0, expires: Date.now() + 60_000 }],
@@ -414,4 +415,29 @@ test("an unusable stored snapshot is ignored instead of failing setup", async ()
     assert.equal(fake.editor.added.length, 6, `snapshot ${JSON.stringify(bad)} must be ignored, not fatal`)
     await cleanup()
   }
+})
+
+test("a second instance for the same location stays inert", async () => {
+  const first = await setup()
+  const warn = console.warn
+  const warnings: string[] = []
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args.map(String).join(" "))
+  }
+  try {
+    const second = await setup()
+    assert.equal(second.editor.added.length, 0, "the duplicate registers no tools")
+    assert.equal(second.rpc.registered.length, 0, "and claims no RPC domain")
+    assert.ok(warnings.some((line) => line.includes("already loaded")), "the duplicate says why it is inert")
+
+    await second.cleanup()
+    assert.equal(first.editor.added.length, 6, "the inert twin left the owner alone")
+  } finally {
+    console.warn = warn
+  }
+  await first.cleanup()
+
+  const next = await setup()
+  assert.equal(next.editor.added.length, 6, "the owner's cleanup frees the location")
+  await next.cleanup()
 })

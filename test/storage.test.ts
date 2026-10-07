@@ -1,12 +1,13 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { MeshStore } from "../src/storage.ts"
+import { SNAPSHOT_VERSION } from "../src/core/mesh.ts"
 import type { MeshSnapshot } from "../src/types.ts"
 import { createFakeStorage } from "./helpers/fakes.ts"
 
 function snapshot(overrides: Partial<MeshSnapshot> = {}): MeshSnapshot {
   return {
-    version: 1,
+    version: SNAPSHOT_VERSION,
     savedAt: 1_700_000_000_000,
     peers: [{ sessionID: "ses_a", status: "running", lastSeen: 1_700_000_000_000, title: "one" }],
     claims: [{ key: "/repo/a.ts", raw: "a.ts", holder: "ses_a", acquired: 1, expires: 2 }],
@@ -55,7 +56,14 @@ test("load tolerates a storage read failure", async () => {
 })
 
 test("load rejects payloads that are not snapshots", async () => {
-  for (const bad of [null, 42, "text", [], { version: 1 }, { version: 1, peers: [], claims: [] }]) {
+  for (const bad of [
+    null,
+    42,
+    "text",
+    [],
+    { version: SNAPSHOT_VERSION },
+    { version: SNAPSHOT_VERSION, peers: [], claims: [] },
+  ]) {
     const store = new MeshStore(createFakeStorage({ "crosstalk/proj-1": bad }), { key: "crosstalk" })
     assert.equal(await store.load("proj-1"), undefined, `payload ${JSON.stringify(bad)} must be rejected`)
   }
@@ -72,7 +80,7 @@ test("load drops individual malformed entries but keeps the snapshot", async () 
   const store = new MeshStore(
     createFakeStorage({
       "crosstalk/proj-1": {
-        version: 1,
+        version: SNAPSHOT_VERSION,
         savedAt: 7,
         peers: [{ sessionID: "ses_a" }, "garbage", null],
         claims: [{ key: "/a" }, 5],

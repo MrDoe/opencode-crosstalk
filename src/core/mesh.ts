@@ -121,7 +121,13 @@ export interface DeclareResult {
   nameConflict?: { name: string; holder: string }
 }
 
-export const SNAPSHOT_VERSION = 1
+/**
+ * Bumped to 2 because twin plugin instances could each persist to the same
+ * key and clobber each other's records; `restore` ignores any snapshot not
+ * written by its own version, so an installation with damaged state starts
+ * honest instead of half-remembering it.
+ */
+export const SNAPSHOT_VERSION = 2
 
 export class Mesh {
   readonly registry: Registry
@@ -712,6 +718,7 @@ export class Mesh {
    * already held.
    */
   restore(snapshot: MeshSnapshot): void {
+    if (snapshot.version !== SNAPSHOT_VERSION) return
     for (const peer of snapshot.peers) {
       if (!peer || typeof peer.sessionID !== "string") continue
       const live = this.registry.get(peer.sessionID)

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { Mesh } from "../src/core/mesh.ts"
+import { Mesh, SNAPSHOT_VERSION } from "../src/core/mesh.ts"
 import { createdEvent, createManualClock, createTestMesh, event, meshOptions } from "./helpers/fakes.ts"
 
 test("peers excludes the caller and decorates with unread counts and claims", async () => {
@@ -65,7 +65,7 @@ test("restore fills gaps on a record the live stream already created", () => {
   assert.equal(mesh.registry.get("ses_live")?.projectID, undefined)
 
   mesh.restore({
-    version: 1,
+    version: SNAPSHOT_VERSION,
     savedAt: 0,
     peers: [
       {
@@ -94,7 +94,7 @@ test("restore keeps live fields when both sides have them", () => {
   mesh.applyEvent(createdEvent("ses_a", { title: "live title" }))
   mesh.declare("ses_a", { name: "Live" })
   mesh.restore({
-    version: 1,
+    version: SNAPSHOT_VERSION,
     savedAt: 0,
     peers: [{ sessionID: "ses_a", status: "idle", lastSeen: 1, title: "stale title", declared: { name: "Stale" } }],
     claims: [],
@@ -134,7 +134,7 @@ test("a bare name is not a task, so the portrait waits for one", () => {
 test("assignPortraits backfills restored task-bearing peers without moving frozen ones", () => {
   const { mesh } = createTestMesh({ avatars: personaPool })
   mesh.restore({
-    version: 1,
+    version: SNAPSHOT_VERSION,
     savedAt: 0,
     peers: [
       { sessionID: "ses_old", status: "idle", lastSeen: 1, declared: { name: "Rita", role: "coder" } },
@@ -153,6 +153,17 @@ test("assignPortraits backfills restored task-bearing peers without moving froze
   assert.equal(mesh.assignPortraits(), 1, "only the missing portrait is assigned")
   assert.ok(mesh.registry.get("ses_old")?.portrait)
   assert.equal(mesh.registry.get("ses_set")?.portrait, "male/m-manager.png", "a frozen portrait survives")
+})
+
+test("a snapshot from another version is ignored entirely", () => {
+  const { mesh } = createTestMesh()
+  mesh.restore({
+    version: SNAPSHOT_VERSION + 1,
+    savedAt: 0,
+    peers: [{ sessionID: "ses_x", status: "idle", lastSeen: 1, declared: { name: "Old" } }],
+    claims: [],
+  })
+  assert.equal(mesh.registry.get("ses_x"), undefined, "state from another era is not half-read")
 })
 
 test("send to a known peer delivers and records in their mailbox", async () => {
@@ -602,7 +613,7 @@ test("snapshot carries peers and claims but not messages", async () => {
   await mesh.send("ses_self", { to: "ses_peer", text: "secret plans" })
 
   const snapshot = mesh.snapshot()
-  assert.equal(snapshot.version, 1)
+  assert.equal(snapshot.version, SNAPSHOT_VERSION)
   assert.equal(snapshot.peers.length, 2)
   assert.equal(snapshot.claims.length, 1)
   assert.equal(JSON.stringify(snapshot).includes("secret plans"), false)
@@ -611,7 +622,7 @@ test("snapshot carries peers and claims but not messages", async () => {
 test("restore fills gaps without clobbering live state", () => {
   const { mesh } = createTestMesh()
   const snapshot = {
-    version: 1,
+    version: SNAPSHOT_VERSION,
     savedAt: 0,
     peers: [
       { sessionID: "ses_live", status: "idle" as const, lastSeen: 1, title: "stale title" },

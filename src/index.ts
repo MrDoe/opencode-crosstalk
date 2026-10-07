@@ -93,6 +93,23 @@ function loadAvatars(): AvatarEntry[] {
   }
 }
 
+/**
+ * Which setup instance owns each location. `globalThis` rather than a module
+ * variable because the same plugin can be installed twice (a global link plus
+ * a config path to the same checkout), and two loads can get two module
+ * instances while sharing one process — the location guard must still see the
+ * whole truth.
+ */
+interface CrosstalkGuard {
+  owners: Map<string, symbol>
+}
+
+function crosstalkGuard(): CrosstalkGuard {
+  const holder = globalThis as { __crosstalk?: CrosstalkGuard }
+  holder.__crosstalk ??= { owners: new Map() }
+  return holder.__crosstalk
+}
+
 export default Plugin.define({
   id,
   async setup(ctx) {
@@ -101,6 +118,22 @@ export default Plugin.define({
 
     const projectID = ctx.location.project?.id
     const directory = ctx.location.directory
+
+    // One live instance per location. The same plugin can be installed twice
+    // (a global link plus a config path) and the host will happily load both;
+    // two meshes would serve tools and RPC from split state while clobbering
+    // one snapshot key. The first load owns the location, later ones stay
+    // inert and say so.
+    const place = directory ?? "__unknown__"
+    const guard = crosstalkGuard()
+    if (guard.owners.has(place)) {
+      console.warn(
+        `[crosstalk] ${id} is already loaded for ${place}; this copy registers nothing. Load the plugin from exactly one location.`,
+      )
+      return async () => {}
+    }
+    const ownerToken = Symbol(place)
+    guard.owners.set(place, ownerToken)
 
     const mesh = new Mesh({
       options: {
@@ -235,6 +268,7 @@ export default Plugin.define({
     const unsubscribeRpc = mesh.subscribe(scheduleRpc)
 
     return async () => {
+      if (guard.owners.get(place) === ownerToken) guard.owners.delete(place)
       controller.abort()
       await streaming
       unsubscribeRpc()

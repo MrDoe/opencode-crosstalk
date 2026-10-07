@@ -203,8 +203,10 @@ never fires.
   would ignore.
 - **Both `~/.opencode/plugins/` and `<config>/plugins/` are discovered** (verified
   on this machine, despite only the latter being documented). Install to exactly
-  one — linking both loads the plugin twice per location. `CROSSTALK_PLUGINS_DIR`
-  overrides the target.
+  one — linking both loads the plugin twice per location; since the instance
+  guard, the second load detects the first via `globalThis` and stays inert
+  (it warns and registers nothing), but the duplicate entry should still be
+  removed. `CROSSTALK_PLUGINS_DIR` overrides the target.
 - **A plugin directory needs a root entrypoint.** The host resolves it through
   `index.ts`/`index.js`; it does not read `package.json` `main`/`exports`, and a
   directory without one is dropped **silently**. That is what the root `index.ts`
