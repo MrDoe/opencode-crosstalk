@@ -148,10 +148,11 @@ never fires.
   `strict` filters that require a provable project (or directory) match —
   `#inScope` in `src/core/mesh.ts` is the single choke point. Keep it that
   way: don't widen a listing without leaving the wall intact.
-- **Claim keys are exact normalized strings — no glob expansion.** The
-  `crosstalk_claim` JSON Schema advertises `src/auth/**` as an example, but
-  `normalizeResource` treats `**` as an ordinary path segment, so that string
-  becomes a literal key and does not cover the subtree. `normalizeResource` also
+- **Claim keys are exact normalized strings — no glob expansion.** The tool
+  text and the `resources` schema both say so, and `normalizeResource` keeps
+  the promise: `**` is an ordinary path segment, so `src/auth/**` is a literal
+  key that covers nothing but itself — leasing a directory never covers its
+  children, and a model must claim each file it edits. `normalizeResource` also
   case-folds only Windows-looking paths, and resolves relative paths against the
   holder's directory so two worktrees don't shadow each other.
 
