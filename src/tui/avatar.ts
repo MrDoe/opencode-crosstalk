@@ -116,14 +116,36 @@ export function stripEmoticon(title: string): string {
 }
 
 /**
+ * Drop a leading `Name: ` prefix this plugin manages.
+ *
+ * Only a prefix matching the declared name counts, so a name the user typed
+ * into a title themselves is left alone.
+ */
+function stripNamePrefix(title: string, name: string): string {
+  const lead = title.replace(/^\s+/, "")
+  const prefix = `${name}:`
+  if (lead.startsWith(prefix)) return lead.slice(prefix.length).replace(/^[\s\u00a0]+/, "")
+  return title
+}
+
+/**
  * The tab-header title for one session, or `undefined` when nothing should be
  * written — either there is no title to decorate or it is already correct, so a
  * caller can compare instead of guessing and the write stays idempotent.
+ *
+ * With a declared name the title becomes `Name: base`; without one it stays
+ * `base`, so sessions that never declared a name are unchanged.
  */
-export function titleWithEmoticon(title: string | undefined, glyph: string | undefined): string | undefined {
+export function titleWithEmoticon(
+  title: string | undefined,
+  glyph: string | undefined,
+  name: string | undefined,
+): string | undefined {
   if (title === undefined || glyph === undefined) return undefined
-  const base = stripEmoticon(title)
+  let base = title
+  if (name !== undefined && name.length > 0) base = stripNamePrefix(base, name)
+  base = stripEmoticon(base)
   if (base.length === 0) return undefined
-  const wanted = `${glyph} ${base}`
+  const wanted = name !== undefined && name.length > 0 ? `${name}: ${base}` : base
   return wanted === title ? undefined : wanted
 }

@@ -115,11 +115,22 @@ test("stripEmoticon only removes a managed lead glyph", () => {
   assert.equal(stripEmoticon("fix 💻 bug"), "fix 💻 bug", "only the lead is managed")
 })
 
-test("titleWithEmoticon is idempotent and does not invent a title", () => {
-  assert.equal(titleWithEmoticon("Talk to other sessions", "💻"), "💻 Talk to other sessions")
-  assert.equal(titleWithEmoticon("💻 Talk to other sessions", "💻"), undefined, "already decorated: nothing to write")
-  assert.equal(titleWithEmoticon("💼 Talk", "💻"), "💻 Talk", "a stale managed glyph is replaced")
-  assert.equal(titleWithEmoticon(undefined, "💻"), undefined, "no title yet: leave the host to name it")
-  assert.equal(titleWithEmoticon("💻", "💻"), undefined, "nothing left but the glyph")
-  assert.equal(titleWithEmoticon("Talk", undefined), undefined)
+test("titleWithEmoticon strips a managed glyph and is idempotent", () => {
+  assert.equal(titleWithEmoticon("💻 Talk to other sessions", "💻", undefined), "Talk to other sessions", "glyph stripped")
+  assert.equal(titleWithEmoticon("Talk to other sessions", "💻", undefined), undefined, "already stripped: nothing to write")
+  assert.equal(titleWithEmoticon("💼 Talk", "💻", undefined), "Talk", "a stale managed glyph is removed")
+  assert.equal(titleWithEmoticon(undefined, "💻", undefined), undefined, "no title yet: leave the host to name it")
+  assert.equal(titleWithEmoticon("💻", "💻", undefined), undefined, "nothing left but the glyph")
+  assert.equal(titleWithEmoticon("Talk", undefined, undefined), undefined, "no glyph: nothing to do")
+})
+
+test("titleWithEmoticon includes the declared name", () => {
+  assert.equal(titleWithEmoticon("Talk", "💻", "Ada"), "Ada: Talk")
+  assert.equal(titleWithEmoticon("Ada: Talk", "💻", "Ada"), undefined, "already decorated: nothing to write")
+  assert.equal(titleWithEmoticon("💻 Talk", "💻", "Ada"), "Ada: Talk", "glyph stripped, name added")
+  assert.equal(titleWithEmoticon("Ada: 💻 Talk", "💻", "Ada"), "Ada: Talk", "name kept, glyph stripped")
+  assert.equal(titleWithEmoticon("Bob: Talk", "💻", "Ada"), "Ada: Bob: Talk", "a foreign name prefix is kept")
+  assert.equal(titleWithEmoticon("Talk", "💻", undefined), undefined, "no name, nothing to strip: nothing to write")
+  assert.equal(titleWithEmoticon("Talk", "💻", ""), undefined, "empty name, nothing to strip: nothing to write")
+  assert.equal(titleWithEmoticon("Ada:", "💻", "Ada"), undefined, "nothing left but the name prefix")
 })

@@ -126,7 +126,7 @@ export default Plugin.define({
         // silently rewrites the user's tab title.
         const portrait = entryForPortrait(entries, entry.portrait)
         if (portrait === undefined) continue
-        const wanted = titleWithEmoticon(entry.title, emoticonFor(portrait))
+        const wanted = titleWithEmoticon(entry.title, emoticonFor(portrait), entry.name)
         if (wanted === undefined || written.get(entry.sessionID) === wanted) continue
         written.set(entry.sessionID, wanted)
         try {
