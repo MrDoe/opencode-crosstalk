@@ -108,6 +108,29 @@ test("status declares a role and reports the peer list", async () => {
   assert.match(output, /claim what you are about to edit/)
 })
 
+test("status shows a self-check line with snapshot format and storage key", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  const output = await h.status(undefined)
+  assert.match(output, /self-check: snapshot v2/)
+  assert.match(output, /storage crosstalk\//, "the persisted mesh key is named")
+})
+
+test("status self-check counts live plugin locations through the guard", async () => {
+  const holder = globalThis as { __crosstalk?: unknown }
+  const previous = holder.__crosstalk
+  holder.__crosstalk = { owners: new Map([["dir-a", Symbol("a")], ["dir-b", Symbol("b")]]) }
+  try {
+    const h = harness()
+    h.mesh.applyEvent(createdEvent("ses_self"))
+    const output = await h.status(undefined)
+    assert.match(output, /2 locations owned/)
+  } finally {
+    if (previous === undefined) delete holder.__crosstalk
+    else holder.__crosstalk = previous
+  }
+})
+
 test("status reports a peer's summary on its line", async () => {
   const h = harness()
   h.mesh.applyEvent(createdEvent("ses_self"))

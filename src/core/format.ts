@@ -85,12 +85,29 @@ function notAddressable(peer: PeerView, scope: Scope): string {
     : `outside the ${scope} scope — not addressable`
 }
 
+/**
+ * Plugin health for the calling location, rendered as one diagnostic line so
+ * install problems (double loads, lost snapshots) are visible to the model
+ * without spelunking logs.
+ */
+export interface SelfCheck {
+  /** Snapshot format this build writes and restores, e.g. `v2`. */
+  snapshot: string
+  /** Mesh storage key; only meaningful when `persist` is true. */
+  storageKey?: string
+  /** False when persistence is off: nothing survives a restart. */
+  persist: boolean
+  /** Locations the live plugin instances in this process own. Absent when unknown. */
+  locations?: number
+}
+
 export interface StatusViewInput {
   self: PeerView
   peers: PeerView[]
   scope: Scope
   now: number
   hints?: string[]
+  selfCheck?: SelfCheck
 }
 
 export function formatStatus(input: StatusViewInput): string {
@@ -114,6 +131,15 @@ export function formatStatus(input: StatusViewInput): string {
     lines.push(`  working on: ${self.declared.workingOn.join(", ")}`)
   }
   if (self.claims.length > 0) lines.push(`  your claims: ${self.claims.join(", ")}`)
+
+  if (input.selfCheck) {
+    const check = input.selfCheck
+    const parts = [`snapshot ${check.snapshot}`]
+    if (check.persist && check.storageKey !== undefined) parts.push(`storage ${check.storageKey}`)
+    if (!check.persist) parts.push("persistence off")
+    if (check.locations !== undefined) parts.push(`${check.locations} location${check.locations === 1 ? "" : "s"} owned`)
+    lines.push(`  self-check: ${parts.join(" · ")}`)
+  }
 
   const running = peers.filter((p) => p.status === "running").length
   const idle = peers.filter((p) => p.status === "idle").length

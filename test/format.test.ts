@@ -98,6 +98,43 @@ test("formatStatus renders identity, declaration, and the peer list", () => {
   )
 })
 
+test("formatStatus renders the self-check line when given one", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+    selfCheck: { snapshot: "v2", storageKey: "crosstalk/proj-1", persist: true, locations: 2 },
+  })
+  assert.match(
+    output,
+    /^ {2}self-check: snapshot v2 · storage crosstalk\/proj-1 · 2 locations owned$/m,
+    "one diagnostic line after the own record",
+  )
+})
+
+test("formatStatus self-check degrades without persistence or guard data", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+    selfCheck: { snapshot: "v2", persist: false },
+  })
+  assert.match(output, /self-check: snapshot v2 · persistence off/, "the storage key is meaningless when off")
+  assert.doesNotMatch(output, /locations/, "no guard data: the count is omitted, not guessed")
+})
+
+test("formatStatus omits the self-check line when no self-check is given", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+  })
+  assert.doesNotMatch(output, /self-check/)
+})
+
 test("formatStatus ellipsizes a peer's summary so the line stays readable", () => {
   const output = formatStatus({
     self: peer({ sessionID: "ses_self", isSelf: true }),

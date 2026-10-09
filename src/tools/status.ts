@@ -2,9 +2,23 @@
  * @fileoverview `crosstalk_status` — declare who you are, see who else is here.
  */
 
+import { SNAPSHOT_VERSION } from "../core/mesh.ts"
 import { formatStatus, SUMMARY_STALE_MS, relativeAge } from "../core/format.ts"
 import { ArgError, readString, readStringArray } from "./args.ts"
 import { jsonSchema, run, type ToolDeps, type CrosstalkToolInfo } from "./types.ts"
+
+/**
+ * Locations the live plugin instances in this process own, read from the
+ * instance guard `src/index.ts` keeps on `globalThis` (same process, shared
+ * by every plugin load). This is the number that would have shown the twin
+ * install instantly; it degrades to `undefined` whenever the shape is not
+ * exactly what the guard promises, so a refactor there costs a line, not a
+ * thrown tool call.
+ */
+function locationsOwned(): number | undefined {
+  const guard = (globalThis as { __crosstalk?: { owners?: unknown } }).__crosstalk
+  return guard?.owners instanceof Map ? guard.owners.size : undefined
+}
 
 /** A human name is a nickname: letters, digits, spaces, `-`, `_`; 1-32 chars. */
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9 _-]{0,31}$/
@@ -21,6 +35,8 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
       "whenever your task changes: it is shown under your avatar in the sidebar and read by peers.",
       "Returns your own record plus the peer list with each peer's status, activity age, unread mail,",
       "and any files they have already leased.",
+      "The output carries a self-check line (snapshot format, storage key, live plugin locations)",
+      "so an install problem is visible without reading server logs.",
     ].join(" "),
     input: jsonSchema({
       type: "object",
@@ -103,7 +119,17 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
           )
         }
 
-        return formatStatus({ self, peers, scope: deps.options.scope, now, hints })
+        // Diagnostics for the calling location. The key formula mirrors
+        // MeshStore.keyFor; if that ever changes, this line goes stale with it.
+        const locations = locationsOwned()
+        const selfCheck = {
+          snapshot: `v${SNAPSHOT_VERSION}`,
+          persist: deps.options.persist,
+          ...(deps.options.persist ? { storageKey: `${deps.options.storageKey}/${self.projectID ?? "global"}` } : {}),
+          ...(locations !== undefined ? { locations } : {}),
+        }
+
+        return formatStatus({ self, peers, scope: deps.options.scope, now, hints, selfCheck })
       })
     },
   }
