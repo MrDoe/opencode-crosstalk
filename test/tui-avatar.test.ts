@@ -9,7 +9,9 @@ import {
   hash,
   poolHint,
   stripEmoticon,
+  summaryText,
   titleWithEmoticon,
+  SUMMARY_MAX,
   type AvatarEntry,
 } from "../src/tui/avatar.ts"
 
@@ -133,4 +135,29 @@ test("titleWithEmoticon includes the declared name", () => {
   assert.equal(titleWithEmoticon("Talk", "💻", undefined), undefined, "no name, nothing to strip: nothing to write")
   assert.equal(titleWithEmoticon("Talk", "💻", ""), undefined, "empty name, nothing to strip: nothing to write")
   assert.equal(titleWithEmoticon("Ada:", "💻", "Ada"), undefined, "nothing left but the name prefix")
+})
+
+// ── status summary ────────────────────────────────────────────────────────────
+
+test("summaryText prefers the summary and falls back to the goal", () => {
+  assert.equal(summaryText({ summary: "Rewriting the session store" }), "Rewriting the session store")
+  assert.equal(summaryText({ summary: "now", goal: "the overall goal" }), "now", "the summary wins")
+  assert.equal(
+    summaryText({ goal: "port auth" }),
+    "port auth",
+    "a session that never wrote a summary still says something",
+  )
+})
+
+test("summaryText flattens whitespace and clips long text", () => {
+  assert.equal(summaryText({ summary: "line one\nline  two" }), "line one line two")
+  assert.equal(summaryText({ summary: "x".repeat(SUMMARY_MAX + 10) }), `${"x".repeat(SUMMARY_MAX - 1)}…`)
+  assert.equal(SUMMARY_MAX, 200, "the display budget matches the tool's write limit")
+})
+
+test("summaryText reports nothing when there is nothing to show", () => {
+  assert.equal(summaryText({}), undefined)
+  assert.equal(summaryText(undefined), undefined)
+  assert.equal(summaryText({ summary: "  \n " }), undefined, "whitespace is not a summary")
+  assert.equal(summaryText({ goal: "" }), undefined)
 })

@@ -33,6 +33,7 @@ function peerLine(peer: PeerView, now: number, scope: Scope): string {
   if (peer.isSelf) parts.push("(you)")
   parts.push(peer.stale ? `${peer.status}?` : peer.status)
   if (peer.declared?.role) parts.push(`role=${ellipsis(peer.declared.role, 24)}`)
+  if (peer.declared?.summary) parts.push(`summary="${ellipsis(peer.declared.summary, 60)}"`)
   if (peer.title) parts.push(`"${ellipsis(peer.title, 48)}"`)
   if (peer.agent) parts.push(peer.agent)
   parts.push(`active ${relativeAge(peer.lastSeen, now)} ago`)
@@ -69,6 +70,7 @@ export function formatStatus(input: StatusViewInput): string {
   if (self.title) lines.push(`  session: ${ellipsis(self.title, 72)}`)
   if (self.declared?.role) lines.push(`  role: ${self.declared.role}`)
   if (self.declared?.goal) lines.push(`  goal: ${self.declared.goal}`)
+  if (self.declared?.summary) lines.push(`  summary: ${self.declared.summary}`)
   if (self.declared?.workingOn && self.declared.workingOn.length > 0) {
     lines.push(`  working on: ${self.declared.workingOn.join(", ")}`)
   }

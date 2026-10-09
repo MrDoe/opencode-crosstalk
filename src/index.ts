@@ -65,6 +65,8 @@ function briefing(peers: number, claims: number): string {
     "Declare once — briefly — then keep moving: `crosstalk_status` sets a unique human name (so the user can say",
     '"tell George…" and peers can address you) plus your role and a goal of a few words; `crosstalk_peers` shows',
     "active sessions and their leases, and work that does not overlap theirs needs no coordination.",
+    "Write `summary` — one or two short sentences on what you are doing right now — and refresh it when your",
+    "task changes: it shows under your avatar in the sidebar and peers read it.",
     "Talk before you collide — as a notice, not an essay: `crosstalk_send` one short precise sentence addressed by",
     "session id or name and continue elsewhere; replies are injected into live turns (`crosstalk_inbox` to catch up).",
     "Never force a claim. Lease what you are editing now with `crosstalk_claim` (it refuses if another session already",

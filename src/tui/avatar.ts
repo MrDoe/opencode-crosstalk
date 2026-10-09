@@ -1,6 +1,7 @@
 /**
  * @fileoverview How a frozen portrait is shown: the emoticon that belongs to
- * the Persona it was given, and the title that emoticon is written into.
+ * the Persona it was given, the title that emoticon is written into, and the
+ * status summary shown under the avatar.
  *
  * The selection itself lives in `src/core/avatar.ts`: the server freezes one
  * portrait per session when a task is first declared, so this side only maps a
@@ -9,6 +10,7 @@
  */
 
 import { hash, type AvatarEntry } from "../core/avatar.ts"
+import { ellipsis } from "../core/format.ts"
 
 export {
   chooseAvatar,
@@ -148,4 +150,22 @@ export function titleWithEmoticon(
   if (base.length === 0) return undefined
   const wanted = name !== undefined && name.length > 0 ? `${name}: ${base}` : base
   return wanted === title ? undefined : wanted
+}
+
+/** Widest status summary the sidebar shows; matches the tool's write limit. */
+export const SUMMARY_MAX = 200
+
+/**
+ * The status summary under one avatar: what the session says it is doing right
+ * now, flattened onto a single line so the renderer wraps it itself. The
+ * declared summary wins; a session that never wrote one falls back to its goal,
+ * so a declaration made before the summary existed still says something.
+ * Undefined when neither is there — the avatar block then shows only the name
+ * and the role, and the caller renders nothing.
+ */
+export function summaryText(entry: { summary?: string; goal?: string } | undefined): string | undefined {
+  const raw = entry?.summary ?? entry?.goal
+  if (raw === undefined) return undefined
+  const flat = ellipsis(raw, SUMMARY_MAX)
+  return flat.length === 0 ? undefined : flat
 }

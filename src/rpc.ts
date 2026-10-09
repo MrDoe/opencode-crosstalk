@@ -17,6 +17,7 @@ const sessionSchema = {
     name: { type: "string" },
     role: { type: "string" },
     goal: { type: "string" },
+    summary: { type: "string" },
     avatar: { type: "string" },
     directory: { type: "string" },
     projectID: { type: "string" },

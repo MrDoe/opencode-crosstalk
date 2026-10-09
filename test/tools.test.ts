@@ -97,13 +97,49 @@ test("status declares a role and reports the peer list", async () => {
   h.mesh.applyEvent(createdEvent("ses_self", { title: "mine" }))
   h.mesh.applyEvent(createdEvent("ses_peer", { title: "theirs", agent: "plan" }))
 
-  const output = await h.status({ role: "migrator", goal: "port auth", workingOn: ["src/auth.ts"] })
+  const output = await h.status({ role: "migrator", goal: "port auth", summary: "half of auth ported", workingOn: ["src/auth.ts"] })
   assert.match(output, /you are ses_self/)
   assert.match(output, /role: migrator/)
   assert.match(output, /goal: port auth/)
+  assert.match(output, /summary: half of auth ported/)
   assert.match(output, /working on: src\/auth\.ts/)
   assert.match(output, /- ses_peer/)
   assert.match(output, /claim what you are about to edit/)
+})
+
+test("status reports a peer's summary on its line", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ summary: "porting the token refresh" }, "ses_peer")
+
+  const output = await h.status({ summary: "half of auth ported" })
+  assert.match(output, /- ses_peer {2}unknown {2}summary="porting the token refresh"/)
+  assert.doesNotMatch(output, /tell peers what you are doing right now/, "the own summary silences the hint")
+})
+
+test("status rejects an over-long summary instead of truncating it", async () => {
+  const h = harness()
+  const output = await h.status({ summary: "x".repeat(201) })
+  assert.match(output, /^crosstalk: "summary" is 201 characters; the limit is 200$/)
+})
+
+test("status hints at a missing summary while peers are listening", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+
+  const missing = await h.status({ role: "migrator" })
+  assert.match(missing, /tell peers what you are doing right now/)
+
+  const declared = await h.status({ summary: "half of auth ported" })
+  assert.doesNotMatch(declared, /tell peers what you are doing right now/)
+})
+
+test("status without peers says nothing about summaries", async () => {
+  const h = harness()
+  const output = await h.status({})
+  assert.doesNotMatch(output, /tell peers what you are doing right now/)
 })
 
 test("status with no arguments still reports who you are", async () => {

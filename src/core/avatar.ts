@@ -74,11 +74,12 @@ export function chooseAvatar(
 }
 
 /**
- * Whether a declaration carries work: a role or a goal. A bare name is a
- * nickname, not a task — a session that only named itself has none yet.
+ * Whether a declaration carries work: a role, a goal, or a current summary. A
+ * bare name is a nickname, not a task — a session that only named itself has
+ * none yet.
  */
-export function hasTask(declared: { role?: string; goal?: string } | undefined): boolean {
-  return declared?.role !== undefined || declared?.goal !== undefined
+export function hasTask(declared: { role?: string; goal?: string; summary?: string } | undefined): boolean {
+  return declared?.role !== undefined || declared?.goal !== undefined || declared?.summary !== undefined
 }
 
 /**

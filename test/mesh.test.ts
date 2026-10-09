@@ -34,14 +34,24 @@ test("ensureSelf registers a session the stream never announced", () => {
 test("declare merges, leaving unmentioned fields alone, and refreshes activity", async () => {
   const { mesh, clock } = createTestMesh()
   mesh.applyEvent(createdEvent("ses_self"))
-  mesh.declare("ses_self", { name: "George", role: "reviewer", goal: "audit auth" })
+  mesh.declare("ses_self", { name: "George", role: "reviewer", goal: "audit auth", summary: "reading auth handlers" })
   clock.advance(60_000)
 
   const merged = mesh.declare("ses_self", { goal: "audit auth + sessions" })
   assert.equal(merged.view.declared?.name, "George", "the name survives a partial update")
   assert.equal(merged.view.declared?.role, "reviewer", "role survives a partial update")
   assert.equal(merged.view.declared?.goal, "audit auth + sessions")
+  assert.equal(merged.view.declared?.summary, "reading auth handlers", "a goal update leaves the summary alone")
   assert.equal(merged.view.lastSeen, clock.now(), "declaring counts as activity")
+})
+
+test("a summary refresh is a partial declaration like any other", () => {
+  const { mesh } = createTestMesh()
+  mesh.declare("ses_self", { role: "reviewer", goal: "audit auth", summary: "reading auth handlers" })
+  const refreshed = mesh.declare("ses_self", { summary: "handlers done, on the store" })
+  assert.equal(refreshed.view.declared?.summary, "handlers done, on the store", "the summary is replaced")
+  assert.equal(refreshed.view.declared?.goal, "audit auth", "the goal survives a summary-only refresh")
+  assert.equal(refreshed.view.declared?.role, "reviewer", "so does the role")
 })
 
 test("subscribe observes declarations and events", () => {
@@ -129,6 +139,13 @@ test("a bare name is not a task, so the portrait waits for one", () => {
 
   mesh.declare("ses_a", { role: "writer" })
   assert.equal(mesh.registry.get("ses_a")?.portrait, "female/f-writer.png", "the first task assigns it")
+})
+
+test("a session that only wrote a summary still gets its portrait", () => {
+  const { mesh } = createTestMesh({ avatars: personaPool })
+  mesh.declare("ses_b", { name: "Rita", summary: "rewriting the writer" })
+  const portrait = mesh.registry.get("ses_b")?.portrait
+  assert.ok(portrait !== undefined && /^(female|male)\//.test(portrait), "a summary alone is a task, so the avatar appears with it")
 })
 
 test("assignPortraits backfills restored task-bearing peers without moving frozen ones", () => {

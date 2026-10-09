@@ -1,5 +1,6 @@
 /**
- * @fileoverview CLI (TUI) plugin: the session avatar in the sidebar.
+ * @fileoverview CLI (TUI) plugin: the session avatar in the sidebar, with the
+ * session's live status summary under it.
  *
  * The server plugin owns the directory (who declared what); this side renders
  * it. The RPC contract is shared as a plain object, so that no runtime plugin
@@ -12,9 +13,12 @@ import { Show, createMemo, createSignal } from "solid-js"
 import type { DirectoryEntry, DirectoryPayload } from "../core/directory.ts"
 import { normalizeResource } from "../core/claims.ts"
 import { CrosstalkRpc } from "../rpc.ts"
-import { emoticonFor, entryForPortrait, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
+import { emoticonFor, entryForPortrait, summaryText, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
 
 const manifestUrl = new URL("../../assets/avatars/manifest.json", import.meta.url)
+
+/** Width of the avatar art, and so of the column the summary wraps inside. */
+const AVATAR_WIDTH = 29
 
 function loadEntries(): AvatarEntry[] {
   try {
@@ -58,6 +62,10 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
   const context = usePlugin()
   const [failed, setFailed] = createSignal(false)
   const session = () => props.directory().sessions.find((entry) => entry.sessionID === props.sessionID)
+  // The live status line under the art: one or two short sentences on what the
+  // session is doing right now, re-read from the directory so every refreshed
+  // declaration shows up without a reload.
+  const summary = () => summaryText(session())
   // The server froze the portrait when the session first declared a task;
   // a session without one has no task and shows no avatar. A portrait whose
   // art left the manifest is not swapped for another — it shows nothing.
@@ -81,7 +89,7 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
           */}
           <image
             source={source()}
-            width={29}
+            width={AVATAR_WIDTH}
             height={15}
             fit="cover"
             protocol="blocks"
@@ -89,6 +97,13 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
           />
           <text fg={context.theme.text.base}>{`${emoticonFor(picked())} ${session()?.name ?? "crosstalk"}`}</text>
           <text fg={context.theme.text.muted}>{session()?.role ?? ""}</text>
+          <Show when={summary()}>
+            {() => (
+              <text fg={context.theme.text.muted} width={AVATAR_WIDTH} wrapMode="word">
+                {summary()}
+              </text>
+            )}
+          </Show>
           <Show when={failed()}>
             <text fg={context.theme.text.muted}>[image failed]</text>
           </Show>

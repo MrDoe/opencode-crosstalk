@@ -57,10 +57,24 @@ test("formatStatus renders identity, declaration, and the peer list", () => {
       isSelf: true,
       agent: "build",
       title: "Refactor auth",
-      declared: { name: "George", role: "migrator", goal: "move auth off sessions", workingOn: ["src/auth/session.ts"] },
+      declared: {
+        name: "George",
+        role: "migrator",
+        goal: "move auth off sessions",
+        summary: "half the handlers are moved",
+        workingOn: ["src/auth/session.ts"],
+      },
       claims: ["/repo/src/auth/session.ts"],
     }),
-    peers: [peer({ sessionID: "ses_b", title: "Fix login", agent: "plan", claims: ["/repo/src/db.ts"] })],
+    peers: [
+      peer({
+        sessionID: "ses_b",
+        title: "Fix login",
+        agent: "plan",
+        declared: { summary: "checking the login flow against the new store" },
+        claims: ["/repo/src/db.ts"],
+      }),
+    ],
     scope: "project",
     now: NOW,
     hints: ["you have 1 unread message(s) — crosstalk_inbox"],
@@ -73,13 +87,25 @@ test("formatStatus renders identity, declaration, and the peer list", () => {
       "  session: Refactor auth",
       "  role: migrator",
       "  goal: move auth off sessions",
+      "  summary: half the handlers are moved",
       "  working on: src/auth/session.ts",
       "  your claims: /repo/src/auth/session.ts",
       "  peers on this channel (project): 1 peer, 1 running, 0 idle",
-      "    - ses_b  running  \"Fix login\"  plan  active 4s ago  claims /repo/src/db.ts",
+      '    - ses_b  running  summary="checking the login flow against the new store"  "Fix login"  plan  active 4s ago  claims /repo/src/db.ts',
       "  you have 1 unread message(s) — crosstalk_inbox",
     ].join("\n"),
   )
+})
+
+test("formatStatus ellipsizes a peer's summary so the line stays readable", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [peer({ sessionID: "ses_b", declared: { summary: "s".repeat(80) } })],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(output, new RegExp(`summary="${"s".repeat(59)}…"`), "the summary is clipped, not wrapped")
+  assert.doesNotMatch(output, /summary="s{60}"/, "nothing longer than the budget survives")
 })
 
 test("formatStatus says so when the session is alone", () => {

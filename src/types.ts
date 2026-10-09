@@ -21,6 +21,14 @@ export interface Declared {
   name?: string
   role?: string
   goal?: string
+  /**
+   * What the session is doing *right now*: one or two short sentences, kept
+   * current as the work moves. Unlike `goal` — the overall objective, declared
+   * once — this is the live status line shown under the avatar in the TUI
+   * sidebar and read by peers through `crosstalk_peers`, so it is meant to be
+   * re-declared whenever the task changes.
+   */
+  summary?: string
   workingOn?: string[]
   note?: string
   /**

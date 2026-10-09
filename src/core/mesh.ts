@@ -283,6 +283,7 @@ export class Mesh {
       name: declared.name ?? previous?.name,
       role: declared.role ?? previous?.role,
       goal: declared.goal ?? previous?.goal,
+      summary: declared.summary ?? previous?.summary,
       note: declared.note ?? previous?.note,
       avatar: declared.avatar ?? previous?.avatar,
       workingOn: declared.workingOn ?? previous?.workingOn,

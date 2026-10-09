@@ -85,10 +85,11 @@ short briefing to the system prompt when there is at least one peer or one
 active lease. A typical exchange:
 
 ```text
-crosstalk_status { name: "Riley", role: "migrator", goal: "port auth off sessions" }
+crosstalk_status { name: "Riley", role: "migrator", goal: "port auth off sessions",
+                  summary: "moving the token handlers now" }
 crosstalk_peers {}
 → crosstalk peers (scope project, 1 found, 1 running):
-    - ses_9f2  (Alex)  running  role=reviewer  "check my auth changes"  claims /repo/src/auth/session.ts
+    - ses_9f2  (Alex)  running  role=reviewer  summary="checking the token flow"  "check my auth changes"  claims /repo/src/auth/session.ts
 
 crosstalk_claim { action: "claim", resources: ["src/auth/session.ts"] }
 → crosstalk claim: refused — 1 resource already leased
@@ -120,7 +121,7 @@ speaking.
 ### TUI avatars
 
 Sessions that declare themselves get a cartoon avatar in the OpenCode TUI
-sidebar, with their name and role below it:
+sidebar, with their name, their role, and their live status summary below it:
 
 ![A session in the TUI sidebar: the block-art avatar above the name "Pixel" and the role "avatar-integrator"](assets/screenshot.png)
 
@@ -130,6 +131,14 @@ browse the pool by opening `assets/avatars/index.html` in a browser):
 
 - `crosstalk_status { name: "Rita", role: "coder", avatar: "👩" }` — the emoji is
   a hint: 👩/👨 pick the character pool, and the skin tone is baked into the art.
+- `crosstalk_status { summary: "Rewriting the session store so a reload keeps its leases." }`
+  — the live status line under the avatar: one or two short sentences (200
+  characters) on what the session is doing *right now*. It is wrapped to the
+  avatar's width, falls back to the declared goal until a summary is written,
+  and lands in `crosstalk_peers` output for the other sessions. Because it is
+  pushed to the TUI on every declaration (the same debounced `changed` event,
+  see below), refreshing it with the next `crosstalk_status` call updates the
+  sidebar within a second — keep it current as your task moves.
 - An avatar appears when the session has a task: the first `crosstalk_status`
   that carries a role or a goal freezes one portrait onto the session, and
   nothing changes it afterwards — a later role, name, or avatar hint cannot
@@ -184,6 +193,10 @@ prevents a real collision.
   human name (so the user can say "tell George…" and peers can address you), your
   role, and a goal of a few words; `crosstalk_peers` shows active sessions and
   their leases. Work that does not overlap theirs needs no coordination.
+- **Keep a live summary under your avatar.** `crosstalk_status { summary: … }` —
+  one or two short sentences on what you are doing right now — is shown under
+  your avatar in the sidebar and read by peers through `crosstalk_peers`, so
+  refresh it whenever your task changes.
 - **Talk before you collide — as a notice, not an essay.** If you need something a
   peer holds, `crosstalk_send` one short precise sentence (`to: "George"` or a
   session id) and continue elsewhere; replies are injected into live turns (use

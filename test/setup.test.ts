@@ -371,18 +371,26 @@ test("the RPC directory exposes declared sessions", async () => {
     data: { sessionID: "ses_a", projectID: "proj-1", location: { directory: "/repo" }, title: "one" },
   })
   await fake.editor.byName("status").execute(
-    { name: "Rita", role: "coder", avatar: "👩" },
+    { name: "Rita", role: "coder", summary: "rewriting the session store", avatar: "👩" },
     { sessionID: "ses_a" as never, signal: new AbortController().signal, progress: async () => {} } as never,
   )
 
   const registration = fake.rpc.registered[0]
   assert.equal(registration?.definition.id, "crosstalk")
   const payload = (await registration?.handlers.directory?.()) as {
-    sessions: Array<{ sessionID: string; name?: string; role?: string; avatar?: string; portrait?: string }>
+    sessions: Array<{
+      sessionID: string
+      name?: string
+      role?: string
+      summary?: string
+      avatar?: string
+      portrait?: string
+    }>
   }
   const rita = payload.sessions.find((session) => session.sessionID === "ses_a")
   assert.equal(rita?.name, "Rita")
   assert.equal(rita?.role, "coder")
+  assert.equal(rita?.summary, "rewriting the session store")
   assert.equal(rita?.avatar, "👩")
   const frozen = rita?.portrait
   assert.ok(frozen !== undefined && /^(female|male)\//.test(frozen), "a task-bearing declaration carries a frozen portrait")

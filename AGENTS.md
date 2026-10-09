@@ -277,6 +277,10 @@ prevents a real collision.
   human name (so the user can say "tell George…" and peers can address you), your
   role, and a goal of a few words; `crosstalk_peers` shows active sessions and
   their leases. Work that does not overlap theirs needs no coordination.
+- **Keep a live summary under your avatar.** `crosstalk_status { summary: … }` —
+  one or two short sentences on what you are doing right now — is shown under
+  your avatar in the sidebar and read by peers through `crosstalk_peers`, so
+  refresh it whenever your task changes.
 - **Talk before you collide — as a notice, not an essay.** If you need something a
   peer holds, `crosstalk_send` one short precise sentence (`to: "George"` or a
   session id) and continue elsewhere; replies are injected into live turns (use

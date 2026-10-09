@@ -15,6 +15,8 @@ export type DirectoryEntry = {
   name?: string
   role?: string
   goal?: string
+  /** Live status: 1-2 short sentences, refreshed as the session's work moves. */
+  summary?: string
   avatar?: string
   directory?: string
   projectID?: string
@@ -32,6 +34,7 @@ export function directoryPayload(mesh: Mesh): DirectoryPayload {
     if (peer.declared?.name !== undefined) entry.name = peer.declared.name
     if (peer.declared?.role !== undefined) entry.role = peer.declared.role
     if (peer.declared?.goal !== undefined) entry.goal = peer.declared.goal
+    if (peer.declared?.summary !== undefined) entry.summary = peer.declared.summary
     if (peer.declared?.avatar !== undefined) entry.avatar = peer.declared.avatar
     if (peer.directory !== undefined) entry.directory = peer.directory
     if (peer.projectID !== undefined) entry.projectID = peer.projectID

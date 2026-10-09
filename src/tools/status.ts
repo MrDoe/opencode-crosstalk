@@ -17,6 +17,8 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
       "Call this early in a task: peers use your role to route messages, and it is how two agents",
       "on one repository discover each other. Give yourself a unique human name so the user and",
       "peers can address you (\"tell George…\"). Fields you leave out keep their previous value.",
+      "Set `summary` — one or two short sentences on what you are doing right now — and refresh it",
+      "whenever your task changes: it is shown under your avatar in the sidebar and read by peers.",
       "Returns your own record plus the peer list with each peer's status, activity age, unread mail,",
       "and any files they have already leased.",
     ].join(" "),
@@ -29,6 +31,11 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         },
         role: { type: "string", description: "Short noun for your job, e.g. reviewer, migrator, tester" },
         goal: { type: "string", description: "What you are trying to accomplish in this session" },
+        summary: {
+          type: "string",
+          description:
+            "What you are doing right now: 1-2 short sentences, shown under your avatar and read by peers. Refresh it when your task changes",
+        },
         workingOn: {
           type: "array",
           items: { type: "string" },
@@ -52,13 +59,15 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         }
         const role = readString(input, "role", { max: 64 })
         const goal = readString(input, "goal", { max: 400 })
+        // One or two short sentences: the live status line under the avatar.
+        const summary = readString(input, "summary", { max: 200 })
         const note = readString(input, "note", { max: 400 })
         const avatar = readString(input, "avatar", { max: 32 })
         const workingOn = readStringArray(input, "workingOn", { max: 32, maxLength: 200 })
 
         const declared =
-          name || role || goal || note || avatar || workingOn
-            ? deps.mesh.declare(selfID, { name, role, goal, note, avatar, workingOn })
+          name || role || goal || note || avatar || workingOn || summary
+            ? deps.mesh.declare(selfID, { name, role, goal, summary, note, avatar, workingOn })
             : { view: deps.mesh.view(selfID) }
         if (declared.nameConflict) {
           return (
@@ -80,6 +89,9 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         if (self.unread > 0) hints.push(`you have ${self.unread} unread message(s) — crosstalk_inbox`)
         if (claimsHeld === 0 && peers.length > 0) {
           hints.push("claim what you are about to edit: crosstalk_claim { resources: [...] }")
+        }
+        if (self.declared?.summary === undefined && peers.length > 0) {
+          hints.push('tell peers what you are doing right now: crosstalk_status { summary: "…" }')
         }
 
         return formatStatus({ self, peers, scope: deps.options.scope, now: deps.mesh.now(), hints })
