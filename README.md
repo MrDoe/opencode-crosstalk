@@ -349,11 +349,17 @@ and splits tools on `options.codemode === false` (direct) versus everything else
 
 ```sh
 npm install
-npm test          # 224 unit tests, no network, no server
-npm run typecheck
+npm run check     # the gate: typecheck + 270 unit tests, both always run
 npm run test:e2e  # live smoke test, needs OPENCODE_E2E=1 and a usable model
 npm run setup     # link the plugin in globally
 ```
+
+`npm run check` is the whole gate and is what to keep green before pushing.
+It calls `scripts/check.mjs`, which runs the typecheck and the test suite
+**independently** — one failing never suppresses the other's output — and
+exits non-zero if either failed, naming both codes. `npm test` and
+`npm run typecheck` remain available for a single leg. The tests need no
+network and no server.
 
 The e2e test skips with a reason — rather than failing — when the configured
 provider cannot serve the request, so a credits problem never looks like a
@@ -363,8 +369,25 @@ plugin regression. Point it at a specific model with `OPENCODE_E2E_MODEL`.
 claim table take an injected clock and are tested directly. `src/index.ts`
 (server) and `src/tui/index.tsx` (CLI) are the only places that talk to the
 host; `src/rpc.ts` is the shared contract and imports only types. `scripts/setup.mjs`
-is plain JavaScript and sits outside `tsconfig.json`, so it is not part of the
-typecheck.
+and `scripts/check.mjs` are plain JavaScript sitting outside `tsconfig.json`,
+so neither is part of the typecheck.
+
+## Skills
+
+`.opencode/skills/` carries four project skills OpenCode advertises to every
+session here; load one with the `skill` tool when it fits:
+
+| Skill | Use it for |
+| --- | --- |
+| `crosstalk-coordination` | running several sessions — assigning phases, relaying findings, push waves |
+| `crosstalk-team-workflow` | executing an assignment — leases, a green gate, honest landing reports |
+| `test-driven-development` | any new code: failing test first, watch it fail, then minimal code |
+| `requesting-code-review` | dispatching a reviewer on a commit range before merging |
+
+The first two are written for this repository. The last two are vendored from
+[obra/superpowers](https://github.com/obra/superpowers) under MIT; each file
+carries its attribution footer and any edits made while vendoring.
+`.opencode/skills/README.md` is the index.
 
 ## License
 
