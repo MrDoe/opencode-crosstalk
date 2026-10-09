@@ -43,10 +43,15 @@ export function renderDelivery(message: CrosstalkMessage): string {
   lines.push("")
   lines.push(message.text)
   lines.push("")
-  if (message.meta && typeof message.meta.requested === "string" && message.meta.requested.length > 0) {
-    lines.push(`Acknowledge with crosstalk_send addressed to ${message.from}, then continue your task.`)
+  // Only a `request` demands an answer. Steering every message manufactured
+  // ack loops between polite sessions; `meta.requested` carries the sender's
+  // role for context, it is not a reply demand.
+  if (message.kind === "request") {
+    lines.push(
+      `This is a request: answer with crosstalk_send addressed to ${message.fromName ?? message.from}, then continue your task.`,
+    )
   } else {
-    lines.push("Read it with crosstalk_inbox when convenient; reply with crosstalk_send.")
+    lines.push("Read it with crosstalk_inbox when convenient; reply only if a reply is warranted.")
   }
   return lines.join("\n")
 }

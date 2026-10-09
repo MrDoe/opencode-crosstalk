@@ -469,6 +469,7 @@ test("a second instance for the same location stays inert", async () => {
     assert.equal(second.editor.added.length, 0, "the duplicate registers no tools")
     assert.equal(second.rpc.registered.length, 0, "and claims no RPC domain")
     assert.ok(warnings.some((line) => line.includes("already loaded")), "the duplicate says why it is inert")
+    assert.match(warnings.join("\n"), /by file:\/\/\//, "the duplicate names the owning install")
 
     await second.cleanup()
     assert.equal(first.editor.added.length, 6, "the inert twin left the owner alone")

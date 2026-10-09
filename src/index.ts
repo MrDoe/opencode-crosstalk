@@ -103,7 +103,7 @@ function loadAvatars(): AvatarEntry[] {
  * whole truth.
  */
 interface CrosstalkGuard {
-  owners: Map<string, symbol>
+  owners: Map<string, { token: symbol; source: string }>
 }
 
 function crosstalkGuard(): CrosstalkGuard {
@@ -128,14 +128,15 @@ export default Plugin.define({
     // inert and say so.
     const place = directory ?? "__unknown__"
     const guard = crosstalkGuard()
-    if (guard.owners.has(place)) {
+    const owner = guard.owners.get(place)
+    if (owner) {
       console.warn(
-        `[crosstalk] ${id} is already loaded for ${place}; this copy registers nothing. Load the plugin from exactly one location.`,
+        `[crosstalk] ${id} is already loaded for ${place} by ${owner.source}; this copy (${import.meta.url}) registers nothing. Load the plugin from exactly one location.`,
       )
       return async () => {}
     }
     const ownerToken = Symbol(place)
-    guard.owners.set(place, ownerToken)
+    guard.owners.set(place, { token: ownerToken, source: import.meta.url })
 
     const mesh = new Mesh({
       options: {
@@ -270,7 +271,7 @@ export default Plugin.define({
     const unsubscribeRpc = mesh.subscribe(scheduleRpc)
 
     return async () => {
-      if (guard.owners.get(place) === ownerToken) guard.owners.delete(place)
+      if (guard.owners.get(place)?.token === ownerToken) guard.owners.delete(place)
       controller.abort()
       await streaming
       unsubscribeRpc()

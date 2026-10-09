@@ -218,7 +218,7 @@ test("formatMessage shows the sender's declared name when it has one", () => {
 test("formatInbox renders each message body indented under its header", () => {
   const output = formatInbox({
     self: peer({ sessionID: "ses_self", isSelf: true }),
-    messages: [message({ id: "m1", text: "line one\nline two", meta: { requested: "reviewer" } })],
+    messages: [message({ id: "m1", text: "line one\nline two", kind: "request", fromName: "Ada" })],
     marked: 1,
     unread: 1,
     now: NOW,
@@ -228,13 +228,25 @@ test("formatInbox renders each message body indented under its header", () => {
     output,
     [
       "crosstalk inbox for ses_self: 1 message (1 unread)",
-      "  [m1] from ses_sender · message · 0s ago",
+      "  [m1] from ses_sender (Ada) · request · 0s ago",
       "      line one",
       "      line two",
-      "      ↳ reply with crosstalk_send to reviewer",
+      "      ↳ answer with crosstalk_send to Ada",
       "  marked 1 message read",
     ].join("\n"),
   )
+})
+
+test("formatInbox hints no reply for plain messages, even role-addressed ones", () => {
+  const output = formatInbox({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    messages: [message({ id: "m2", text: "pure ack", meta: { requested: "coordinator" } })],
+    marked: 0,
+    unread: 1,
+    now: NOW,
+    reason: "messages",
+  })
+  assert.equal(output.includes("↳"), false, "a note is not a reply demand")
 })
 
 test("formatInbox explains each way of coming back empty-handed", () => {

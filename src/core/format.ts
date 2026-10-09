@@ -162,8 +162,8 @@ export function formatInbox(input: InboxViewInput): string {
   for (const message of messages) {
     lines.push(`  [${message.id}] ${formatMessage({ message, now })}`)
     for (const line of message.text.split("\n")) lines.push(`      ${line}`)
-    if (message.meta && typeof message.meta.requested === "string") {
-      lines.push(`      ↳ reply with crosstalk_send to ${String(message.meta.requested)}`)
+    if (message.kind === "request") {
+      lines.push(`      ↳ answer with crosstalk_send to ${message.fromName ?? message.from}`)
     }
   }
   if (input.limit !== undefined && messages.length >= input.limit) {
