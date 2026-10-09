@@ -19,6 +19,8 @@ export function claimTool(deps: ToolDeps): CrosstalkToolInfo {
       "work longer than the lease. If a file is already leased the request is refused and tells you",
       "who holds it — signal them with crosstalk_send, wait with crosstalk_wait, or pass force: true.",
       "Paths are normalized, and relative paths resolve against this session's directory.",
+      "Claim keys are exact: there is no glob expansion, and leasing a directory",
+      "does not cover the files inside it — claim each file you edit.",
     ].join(" "),
     input: jsonSchema({
       type: "object",
@@ -31,7 +33,7 @@ export function claimTool(deps: ToolDeps): CrosstalkToolInfo {
         resources: {
           type: "array",
           items: { type: "string" },
-          description: "File paths (src/a.ts, src/auth/**) or named resources (db:migrate)",
+          description: "Exact normalized file paths (src/a.ts, src/auth/login.ts) or named resources (db:migrate). No globs: '**' is an ordinary path segment, not a pattern",
         },
         ttlSeconds: { type: "number", description: "Lease duration in seconds (default 300, max 86400)" },
         note: { type: "string", description: "Why you hold it — shown to the peer you block" },

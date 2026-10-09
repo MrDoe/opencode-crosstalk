@@ -7,6 +7,10 @@
  * resource string) so `"./src/a.ts"`, `"src//a.ts"` and `"src/a.ts/"` all
  * collide, and relative paths resolve against the holder's directory so two
  * worktrees of the same project do not shadow each other.
+ *
+ * Keys are compared exactly — there is no pattern matching, so `*` and `**`
+ * are ordinary characters inside a segment. Leasing a directory covers only
+ * that key, never its children; the tool text says so to the model.
  */
 
 import type { Claim, ClaimConflict, ClaimOutcome } from "../types.ts"
@@ -40,7 +44,8 @@ export interface ListFilter {
  * Normalize a resource string into a comparison key.
  *
  * Windows-looking paths (drive letter or backslashes) are case-folded because
- * that filesystem is; POSIX paths keep their case.
+ * that filesystem is; POSIX paths keep their case. Glob metacharacters carry
+ * no meaning here: `src/auth/**` normalizes to the literal `src/auth/**`.
  */
 export function normalizeResource(raw: string, baseDir?: string): string {
   const original = raw.trim()
