@@ -236,6 +236,14 @@ never fires.
 
 ### Confirming it actually loaded
 
+- **The cheapest instrument is `crosstalk_status` itself**: its output ends
+  with `self-check: snapshot v2 · storage crosstalk/… · 4 locations owned`,
+  naming the snapshot format the running store reports, the storage key (or
+  `persistence off`), and how many locations this process owns in-process.
+  A `2 refused loads` tail appears only after the instance guard turned a
+  duplicate load away — that tail is the twin-install tell. No CLI, no log
+  spelunking; but note a session activated *before* a plugin change still
+  reports the old code, so it shows what was loaded, not what is on disk.
 - `opencode plugin list` shows loaded package plugins and, on 2.0.16, local ones
   too (`VERSION local`, `SOURCE` = the entry file) — but a plugin that failed to
   load is simply absent, so still confirm state against the registry.

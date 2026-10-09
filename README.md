@@ -154,6 +154,15 @@ browse the pool by opening `assets/avatars/index.html` in a browser):
   from five minutes on, and is nudged — *"your summary is 15m old — refresh
   it"* — once it crosses the same quarter-hour the sidebar dims at. A session
   that never declared a summary is still told to declare one.
+- Every `crosstalk_status` call also returns a **self-check line**, so an
+  install problem is visible without reading server logs:
+  `self-check: snapshot v2 · storage crosstalk/fb18e52f…cd2d · 4 locations owned`.
+  It names the snapshot format the running store reports, the storage key (or
+  `persistence off`), and how many locations this process owns in-process.
+  Once the instance guard has turned a duplicate load away, the line grows a
+  `2 refused loads` tail — the tell for a plugin installed in two places at
+  once, which otherwise only shows up as one install silently clobbering the
+  other.
 - `crosstalk_peers { overlap: ["src/auth/session.ts"] }` answers *who else
   touches these paths* in one call: a peer matches when it holds a lease on the
   exact key or listed the path in `workingOn`. Keys are exact, like every claim
