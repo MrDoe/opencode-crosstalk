@@ -2,7 +2,7 @@
  * @fileoverview `crosstalk_status` — declare who you are, see who else is here.
  */
 
-import { formatStatus } from "../core/format.ts"
+import { formatStatus, SUMMARY_STALE_MS, relativeAge } from "../core/format.ts"
 import { ArgError, readString, readStringArray } from "./args.ts"
 import { jsonSchema, run, type ToolDeps, type CrosstalkToolInfo } from "./types.ts"
 
@@ -79,6 +79,7 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
 
         const peers = deps.mesh.peers(selfID)
         const claimsHeld = self.claims.length
+        const now = deps.mesh.now()
         const hints: string[] = []
         if (peers.some((peer) => peer.claims.length > 0)) {
           hints.push("some peers hold leases — use crosstalk_claim before editing their files")
@@ -93,8 +94,16 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         if (self.declared?.summary === undefined && peers.length > 0) {
           hints.push('tell peers what you are doing right now: crosstalk_status { summary: "…" }')
         }
+        // A summary nobody refreshes reads as a promise: the sidebar dims it
+        // after the same window, so the agent hears about it at the same moment
+        // the user starts seeing it.
+        if (self.declared?.summaryAt !== undefined && now - self.declared.summaryAt > SUMMARY_STALE_MS) {
+          hints.push(
+            `your summary is ${relativeAge(self.declared.summaryAt, now)} old — refresh it: crosstalk_status { summary: … }`,
+          )
+        }
 
-        return formatStatus({ self, peers, scope: deps.options.scope, now: deps.mesh.now(), hints })
+        return formatStatus({ self, peers, scope: deps.options.scope, now, hints })
       })
     },
   }

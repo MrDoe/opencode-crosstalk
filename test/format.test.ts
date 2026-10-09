@@ -10,6 +10,7 @@ import {
   formatStatus,
   formatWait,
   relativeAge,
+  SUMMARY_FRESH_MS,
 } from "../src/core/format.ts"
 import type { ClaimOutcome, PeerView } from "../src/types.ts"
 import { message } from "./helpers/fakes.ts"
@@ -134,6 +135,95 @@ test("formatStatus annotates a summary's age only once it stops being fresh", ()
   assert.match(output, /- ses_fresh {2}running {2}summary="porting handlers" {2}/, "a fresh summary needs no timestamp")
   assert.match(output, /- ses_undated {2}running {2}summary="porting handlers" {2}/, "an undated summary is not annotated")
   assert.match(output, /- ses_future {2}running {2}summary="porting handlers" {2}/, "a clock-skewed one stays unannotated")
+})
+
+test("the summary age opens exactly at the freshness boundary", () => {
+  const atBoundary = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [peer({ sessionID: "ses_b", declared: { summary: "porting handlers", summaryAt: NOW - SUMMARY_FRESH_MS } })],
+    scope: "project",
+    now: NOW,
+  })
+  assert.doesNotMatch(atBoundary, /ago\)/, "exactly at the window is still fresh")
+
+  const onePast = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [
+      peer({ sessionID: "ses_b", declared: { summary: "porting handlers", summaryAt: NOW - SUMMARY_FRESH_MS - 1 } }),
+    ],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(onePast, /summary="porting handlers" \(5m ago\)/, "one millisecond past it is annotated")
+})
+
+test("formatStatus annotates the own summary by the same rule", () => {
+  const aging = formatStatus({
+    self: peer({
+      sessionID: "ses_self",
+      isSelf: true,
+      declared: { summary: "porting handlers", summaryAt: NOW - 14 * 60_000 },
+    }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(aging, / {2}summary: porting handlers \(14m ago\)/, "an old own summary says so")
+
+  const fresh = formatStatus({
+    self: peer({
+      sessionID: "ses_self",
+      isSelf: true,
+      declared: { summary: "porting handlers", summaryAt: NOW - 60_000 },
+    }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(fresh, / {2}summary: porting handlers\n/, "a fresh one stays silent")
+})
+
+test("formatPeers echoes the overlap filter and names what it found", () => {
+  const output = formatPeers({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [peer({ sessionID: "ses_b" })],
+    scope: "project",
+    now: NOW,
+    overlap: { paths: ["src/auth.ts", "src/db.ts"], considered: 4 },
+  })
+  assert.match(output, /crosstalk peers \(scope project, 1 found, 1 running, overlap src\/auth\.ts, src\/db\.ts\):/)
+})
+
+test("formatPeers explains an overlap filter that matched nobody", () => {
+  const emptyChannel = formatPeers({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+    overlap: { paths: ["src/auth.ts"], considered: 0 },
+  })
+  assert.equal(
+    emptyChannel,
+    [
+      "crosstalk: no peers overlap src/auth.ts (scope project).",
+      "Nobody else is on this channel, so nothing can overlap — you do not need to claim anything.",
+    ].join("\n"),
+  )
+
+  const quietChannel = formatPeers({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+    overlap: { paths: ["src/auth.ts", "src/db.ts"], considered: 2 },
+  })
+  assert.equal(
+    quietChannel,
+    [
+      "crosstalk: no peers overlap src/auth.ts, src/db.ts (scope project).",
+      "2 other sessions on this channel, but none leases or works on those exact paths — you do not need to claim anything.",
+    ].join("\n"),
+  )
 })
 
 test("a summary that only ever lived in the self view has no peer-line shape yet", () => {

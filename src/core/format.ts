@@ -36,13 +36,24 @@ export function ellipsis(value: string, max: number): string {
 export const SUMMARY_FRESH_MS = 5 * 60_000
 
 /**
+ * A summary older than this is *stale*: the sidebar already dims it (see
+ * `STALE_SUMMARY_MS` in `src/tui/avatar.ts`, which mirrors this value on
+ * purpose — the dim the user sees and the nudge the agent gets should land
+ * together), and the declaring session is told to refresh it.
+ */
+export const SUMMARY_STALE_MS = 15 * 60_000
+
+/**
  * How long ago the peer declared its summary — ` (14m ago)`, or an empty
  * string while it is fresh, missing (declared before the feature, or restored
- * from a snapshot that predates it), or clock-skewed into the future.
+ * from a snapshot that predates it), or clock-skewed into the future. The
+ * window is closed at the boundary: exactly `SUMMARY_FRESH_MS` is still fresh,
+ * one millisecond past it is not — the same convention as the dim rule in
+ * `src/tui/avatar.ts`.
  */
 function summaryAge(peer: PeerView, now: number): string {
   const at = peer.declared?.summaryAt
-  if (at === undefined || now - at < SUMMARY_FRESH_MS) return ""
+  if (at === undefined || now - at <= SUMMARY_FRESH_MS) return ""
   return ` (${relativeAge(at, now)} ago)`
 }
 
@@ -94,7 +105,11 @@ export function formatStatus(input: StatusViewInput): string {
   if (self.title) lines.push(`  session: ${ellipsis(self.title, 72)}`)
   if (self.declared?.role) lines.push(`  role: ${self.declared.role}`)
   if (self.declared?.goal) lines.push(`  goal: ${self.declared.goal}`)
-  if (self.declared?.summary) lines.push(`  summary: ${self.declared.summary}`)
+  // The own record annotates the summary by the same rule as a peer's line:
+  // silent while fresh, explicit once it is worth re-reading before trusting.
+  if (self.declared?.summary) {
+    lines.push(`  summary: ${self.declared.summary}${summaryAge(self, now)}`)
+  }
   if (self.declared?.workingOn && self.declared.workingOn.length > 0) {
     lines.push(`  working on: ${self.declared.workingOn.join(", ")}`)
   }
@@ -119,19 +134,40 @@ export interface PeersViewInput {
   peers: PeerView[]
   scope: Scope
   now: number
+  /**
+   * Set when the caller asked for an overlap filter. The `paths` are echoed in
+   * the header and in the empty answer, so the model sees what the filter was
+   * about; `considered` is how many peers the channel held before the filter
+   * narrowed them, which distinguishes "nobody is here" from "nobody overlaps".
+   */
+  overlap?: { paths: readonly string[]; considered: number }
 }
 
 export function formatPeers(input: PeersViewInput): string {
   const { peers, now } = input
   const lines: string[] = []
+  // The paths are echoed so an empty answer still says what the filter was about.
+  const paths = input.overlap ? ellipsis(input.overlap.paths.join(", "), 120) : ""
   if (peers.length === 0) {
+    if (input.overlap) {
+      const others = input.overlap.considered
+      return [
+        `crosstalk: no peers overlap ${paths} (scope ${input.scope}).`,
+        others > 0
+          ? `${others} other session${others === 1 ? "" : "s"} on this channel, but none leases or works on those exact` +
+            " paths — you do not need to claim anything."
+          : "Nobody else is on this channel, so nothing can overlap — you do not need to claim anything.",
+      ].join("\n")
+    }
     return [
       `crosstalk: no other sessions on this channel (scope ${input.scope}).`,
       "Nobody is competing for files right now; you do not need to claim anything.",
     ].join("\n")
   }
   const running = peers.filter((p) => p.status === "running").length
-  lines.push(`crosstalk peers (scope ${input.scope}, ${peers.length} found, ${running} running):`)
+  lines.push(
+    `crosstalk peers (scope ${input.scope}, ${peers.length} found, ${running} running${input.overlap ? `, overlap ${paths}` : ""}):`,
+  )
   const you = [`you: ${input.self.sessionID}`]
   if (input.self.declared?.name) you.push(`(${ellipsis(input.self.declared.name, 32)})`)
   you.push(input.self.status)

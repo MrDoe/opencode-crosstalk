@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
+import { SUMMARY_STALE_MS } from "../src/core/format.ts"
 import { registerTools, toolFactories, NAMESPACE_DESCRIPTION } from "../src/tools/index.ts"
 import type { ToolEditor } from "@opencode/plugin/promise/tool"
 import { createdEvent, createFakeEditor, createTestMesh, execTool, toolOptions } from "./helpers/fakes.ts"
@@ -293,6 +294,124 @@ test("peers explains an empty channel rather than returning nothing", async () =
 test("peers rejects an unknown status value", async () => {
   const h = harness()
   assert.match(await h.peers({ status: "sleepy" }), /^crosstalk: "status" must be one of: all, running, idle$/)
+})
+
+// ── crosstalk_peers: overlap ────────────────────────────────────────────────
+
+test("peers overlaps leases and workingOn, and explains no match", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_holder"))
+  h.mesh.applyEvent(createdEvent("ses_planner"))
+  await h.claim({ action: "claim", resources: ["src/auth.ts"] }, "ses_holder")
+  await h.status({ workingOn: ["src/db.ts"] }, "ses_planner")
+
+  const byClaim = await h.peers({ overlap: ["src/auth.ts"] })
+  assert.match(byClaim, /1 found/)
+  assert.match(byClaim, /ses_holder/)
+  assert.doesNotMatch(byClaim, /ses_planner/)
+
+  const byWorkingOn = await h.peers({ overlap: ["src/db.ts"] })
+  assert.match(byWorkingOn, /1 found/)
+  assert.match(byWorkingOn, /ses_planner/)
+
+  const both = await h.peers({ overlap: ["src/db.ts", "src/auth.ts"] })
+  assert.match(both, /2 found/)
+  assert.match(both, /overlap src\/db\.ts, src\/auth\.ts/)
+
+  const none = await h.peers({ overlap: ["src/other.ts"] })
+  assert.match(none, /no peers overlap src\/other\.ts/)
+  assert.match(none, /2 other sessions on this channel, but none leases or works on those exact paths/)
+})
+
+test("peers treats overlap paths as exact keys, like every claim key", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_holder"))
+  await h.claim({ action: "claim", resources: ["src/auth.ts"] }, "ses_holder")
+
+  assert.match(await h.peers({ overlap: ["src"] }), /no peers overlap src /, "a directory covers nothing inside it")
+  assert.match(await h.peers({ overlap: ["src/auth.**"] }), /no peers overlap src\/auth\.\*\*/, "and `**` is a literal segment")
+  assert.match(await h.peers({ overlap: ["src/auth.ts"] }), /1 found/, "the file itself does")
+})
+
+test("peers does not overlap a peer's working path from another directory", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_elsewhere", { location: { directory: "/other" } }))
+  await h.status({ workingOn: ["src/db.ts"] }, "ses_elsewhere")
+
+  const output = await h.peers({ overlap: ["src/db.ts"] })
+  assert.match(output, /no peers overlap src\/db\.ts/, "the same relative string in another worktree is another file")
+  assert.match(output, /1 other session on this channel/)
+})
+
+test("peers can overlap the caller's own lease through includeSelf", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  await h.claim({ action: "claim", resources: ["src/auth.ts"] })
+
+  assert.match(await h.peers({ overlap: ["src/auth.ts"] }), /no peers overlap/, "the caller is not a peer to itself")
+  const withSelf = await h.peers({ overlap: ["src/auth.ts"], includeSelf: true })
+  assert.match(withSelf, /1 found/)
+  assert.match(withSelf, /you: ses_self/)
+})
+
+test("peers treats an empty overlap list as no filter at all", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_b"))
+
+  const output = await h.peers({ overlap: [] })
+  assert.match(output, /1 found/)
+  assert.doesNotMatch(output, /overlap/)
+})
+
+test("peers rejects an over-long overlap entry", async () => {
+  const h = harness()
+  const output = await h.peers({ overlap: ["x".repeat(201)] })
+  assert.match(output, /^crosstalk: "overlap" entries must be at most 200 characters$/)
+})
+
+// ── crosstalk_status: summary freshness ───────────────────────────────────────
+
+test("status leaves a fresh summary unannotated", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  const output = await h.status({ summary: "porting handlers" })
+  assert.match(output, / {2}summary: porting handlers\n/, "no annotation while fresh")
+  assert.doesNotMatch(output, /refresh it/)
+})
+
+test("status annotates an aging summary and nudges only once it is stale", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ summary: "porting handlers" })
+  h.clock.advance(14 * 60_000)
+
+  const aging = await h.status({})
+  assert.match(aging, / {2}summary: porting handlers \(14m ago\)/, "the agent sees its own age first")
+  assert.doesNotMatch(aging, /refresh it/, "aging is information, not yet a nudge")
+
+  h.clock.advance(SUMMARY_STALE_MS - 14 * 60_000)
+  const atBoundary = await h.status({})
+  assert.doesNotMatch(atBoundary, /refresh it/, "exactly at the window is not stale")
+
+  h.clock.advance(1)
+  const stale = await h.status({})
+  assert.match(stale, / {2}summary: porting handlers \(15m ago\)/)
+  assert.match(stale, /your summary is 15m old — refresh it: crosstalk_status \{ summary: … \}/)
+})
+
+test("a summary-free session is told to declare one, not to refresh it", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  const output = await h.status({ role: "migrator" })
+  assert.match(output, /tell peers what you are doing right now/)
+  assert.doesNotMatch(output, /refresh it/, "only a declared summary can go stale")
 })
 
 // ── crosstalk_send ───────────────────────────────────────────────────────────

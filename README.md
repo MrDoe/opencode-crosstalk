@@ -91,6 +91,10 @@ crosstalk_peers {}
 → crosstalk peers (scope project, 1 found, 1 running):
     - ses_9f2  (Alex)  running  role=reviewer  summary="checking the token flow"  "check my auth changes"  claims /repo/src/auth/session.ts
 
+crosstalk_peers { overlap: ["src/auth/session.ts"] }
+→ crosstalk peers (scope project, 1 found, 1 running, overlap src/auth/session.ts):
+    - ses_9f2  (Alex)  ...  claims /repo/src/auth/session.ts
+
 crosstalk_claim { action: "claim", resources: ["src/auth/session.ts"] }
 → crosstalk claim: refused — 1 resource already leased
     - src/auth/session.ts held by ses_9f2 (reviewing), free in 4m
@@ -146,6 +150,18 @@ browse the pool by opening `assets/avatars/index.html` in a browser):
   background tick, so it dims even for a session that emits nothing). A summary
   restored from a snapshot written before this feature carries no age: it is
   shown, annotated with nothing, and never dimmed.
+- The declaring session sees its own summary's age in `crosstalk_status` output
+  from five minutes on, and is nudged — *"your summary is 15m old — refresh
+  it"* — once it crosses the same quarter-hour the sidebar dims at. A session
+  that never declared a summary is still told to declare one.
+- `crosstalk_peers { overlap: ["src/auth/session.ts"] }` answers *who else
+  touches these paths* in one call: a peer matches when it holds a lease on the
+  exact key or listed the path in `workingOn`. Keys are exact, like every claim
+  key — asking about a directory never matches the files inside it — and each
+  side is normalized against its own directory, so `src/x.ts` typed by a
+  session in another worktree does not match this one. An empty result says
+  how many sessions were on the channel to begin with, so "nobody overlaps" is
+  never confused with "nobody is here".
 - An avatar appears when the session has a task: the first `crosstalk_status`
   that carries a role or a goal freezes one portrait onto the session, and
   nothing changes it afterwards — a later role, name, or avatar hint cannot

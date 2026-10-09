@@ -168,8 +168,12 @@ test("summaryText reports nothing when there is nothing to show", () => {
 
 test("isSummaryStale dims only summaries past the window", () => {
   const now = 1_000_000_000
-  assert.equal(isSummaryStale(now - STALE_SUMMARY_MS - 1, now), true, "past the window dims")
-  assert.equal(isSummaryStale(now - STALE_SUMMARY_MS + 1, now), false, "just inside it stays bright")
+  assert.equal(
+    isSummaryStale(now - STALE_SUMMARY_MS, now),
+    false,
+    "exactly at the threshold is not yet stale — the window is closed at the boundary",
+  )
+  assert.equal(isSummaryStale(now - STALE_SUMMARY_MS - 1, now), true, "one millisecond past it is")
   assert.equal(isSummaryStale(now, now), false, "a current one stays bright")
 })
 
