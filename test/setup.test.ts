@@ -466,8 +466,11 @@ test("a second instance for the same location stays inert", async () => {
   console.warn = (...args: unknown[]) => {
     warnings.push(args.map(String).join(" "))
   }
+  const holder = globalThis as { __crosstalk?: { refused?: number } }
+  const refusedBefore = holder.__crosstalk?.refused ?? 0
   try {
     const second = await setup()
+    assert.equal(holder.__crosstalk?.refused, refusedBefore + 1, "the guard counts the refused twin for the self-check")
     assert.equal(second.editor.added.length, 0, "the duplicate registers no tools")
     assert.equal(second.rpc.registered.length, 0, "and claims no RPC domain")
     assert.ok(warnings.some((line) => line.includes("already loaded")), "the duplicate says why it is inert")

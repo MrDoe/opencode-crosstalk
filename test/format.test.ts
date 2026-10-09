@@ -125,6 +125,32 @@ test("formatStatus self-check degrades without persistence or guard data", () =>
   assert.doesNotMatch(output, /locations/, "no guard data: the count is omitted, not guessed")
 })
 
+test("formatStatus flags guard-refused loads in the self-check", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+    selfCheck: { snapshot: "v2", storageKey: "crosstalk/p", persist: true, locations: 1, refused: 2 },
+  })
+  assert.match(
+    output,
+    /^ {2}self-check: snapshot v2 · storage crosstalk\/p · 1 location owned · 2 refused loads$/m,
+    "the duplicate-install trace lands on the same line",
+  )
+})
+
+test("formatStatus keeps a zero refused count silent", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+    selfCheck: { snapshot: "v2", storageKey: "crosstalk/p", persist: true, locations: 1, refused: 0 },
+  })
+  assert.doesNotMatch(output, /refused/, "nothing was refused: nothing to alarm about")
+})
+
 test("formatStatus omits the self-check line when no self-check is given", () => {
   const output = formatStatus({
     self: peer({ sessionID: "ses_self", isSelf: true }),

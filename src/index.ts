@@ -104,12 +104,20 @@ function loadAvatars(): AvatarEntry[] {
  */
 interface CrosstalkGuard {
   owners: Map<string, { token: symbol; source: string }>
+  /**
+   * Loads the guard refused because the location already had an owner. The
+   * status self-check surfaces it: a duplicate install is otherwise only
+   * visible in logs nobody reads.
+   */
+  refused: number
 }
 
 function crosstalkGuard(): CrosstalkGuard {
-  const holder = globalThis as { __crosstalk?: CrosstalkGuard }
-  holder.__crosstalk ??= { owners: new Map() }
-  return holder.__crosstalk
+  const holder = globalThis as { __crosstalk?: Partial<CrosstalkGuard> }
+  const guard = (holder.__crosstalk ??= {}) as CrosstalkGuard
+  guard.owners ??= new Map()
+  guard.refused ??= 0
+  return guard
 }
 
 export default Plugin.define({
@@ -130,6 +138,7 @@ export default Plugin.define({
     const guard = crosstalkGuard()
     const owner = guard.owners.get(place)
     if (owner) {
+      guard.refused += 1
       console.warn(
         `[crosstalk] ${id} is already loaded for ${place} by ${owner.source}; this copy (${import.meta.url}) registers nothing. Load the plugin from exactly one location.`,
       )

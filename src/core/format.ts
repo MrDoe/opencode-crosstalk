@@ -99,6 +99,8 @@ export interface SelfCheck {
   persist: boolean
   /** Locations the live plugin instances in this process own. Absent when unknown. */
   locations?: number
+  /** Loads the location guard refused — more than zero means a duplicate install. */
+  refused?: number
 }
 
 export interface StatusViewInput {
@@ -138,6 +140,7 @@ export function formatStatus(input: StatusViewInput): string {
     if (check.persist && check.storageKey !== undefined) parts.push(`storage ${check.storageKey}`)
     if (!check.persist) parts.push("persistence off")
     if (check.locations !== undefined) parts.push(`${check.locations} location${check.locations === 1 ? "" : "s"} owned`)
+    if (check.refused !== undefined && check.refused > 0) parts.push(`${check.refused} refused load${check.refused === 1 ? "" : "s"}`)
     lines.push(`  self-check: ${parts.join(" · ")}`)
   }
 

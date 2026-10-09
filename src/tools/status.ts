@@ -3,21 +3,22 @@
  */
 
 import { SNAPSHOT_VERSION } from "../core/mesh.ts"
+import { meshStorageKey } from "../storage.ts"
 import { formatStatus, SUMMARY_STALE_MS, relativeAge } from "../core/format.ts"
 import { ArgError, readString, readStringArray } from "./args.ts"
 import { jsonSchema, run, type ToolDeps, type CrosstalkToolInfo } from "./types.ts"
 
 /**
- * Locations the live plugin instances in this process own, read from the
- * instance guard `src/index.ts` keeps on `globalThis` (same process, shared
- * by every plugin load). This is the number that would have shown the twin
- * install instantly; it degrades to `undefined` whenever the shape is not
- * exactly what the guard promises, so a refactor there costs a line, not a
- * thrown tool call.
+ * Health of the instance guard `src/index.ts` keeps on `globalThis` (same
+ * process, shared by every plugin load): the locations live instances own and
+ * the loads it refused. Both are the twin-install trace a log-less model
+ * cannot otherwise see; the read is strict — anything but the exact promised
+ * shape yields `undefined`, so a refactor there costs a line, not a lie.
  */
-function locationsOwned(): number | undefined {
-  const guard = (globalThis as { __crosstalk?: { owners?: unknown } }).__crosstalk
-  return guard?.owners instanceof Map ? guard.owners.size : undefined
+function guardHealth(): { locations: number; refused: number } | undefined {
+  const guard = (globalThis as { __crosstalk?: { owners?: unknown; refused?: unknown } }).__crosstalk
+  if (!(guard?.owners instanceof Map) || typeof guard.refused !== "number") return undefined
+  return { locations: guard.owners.size, refused: guard.refused }
 }
 
 /** A human name is a nickname: letters, digits, spaces, `-`, `_`; 1-32 chars. */
@@ -119,14 +120,14 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
           )
         }
 
-        // Diagnostics for the calling location. The key formula mirrors
-        // MeshStore.keyFor; if that ever changes, this line goes stale with it.
-        const locations = locationsOwned()
+        // Diagnostics for the calling location, through the store's own key
+        // formula so the line can never name a key state does not live under.
+        const health = guardHealth()
         const selfCheck = {
           snapshot: `v${SNAPSHOT_VERSION}`,
           persist: deps.options.persist,
-          ...(deps.options.persist ? { storageKey: `${deps.options.storageKey}/${self.projectID ?? "global"}` } : {}),
-          ...(locations !== undefined ? { locations } : {}),
+          ...(deps.options.persist ? { storageKey: meshStorageKey(deps.options.storageKey, self.projectID) } : {}),
+          ...(health ? { locations: health.locations, refused: health.refused } : {}),
         }
 
         return formatStatus({ self, peers, scope: deps.options.scope, now, hints, selfCheck })

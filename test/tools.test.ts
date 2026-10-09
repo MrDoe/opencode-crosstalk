@@ -119,12 +119,28 @@ test("status shows a self-check line with snapshot format and storage key", asyn
 test("status self-check counts live plugin locations through the guard", async () => {
   const holder = globalThis as { __crosstalk?: unknown }
   const previous = holder.__crosstalk
-  holder.__crosstalk = { owners: new Map([["dir-a", Symbol("a")], ["dir-b", Symbol("b")]]) }
+  holder.__crosstalk = { owners: new Map([["dir-a", Symbol("a")], ["dir-b", Symbol("b")]]), refused: 2 }
   try {
     const h = harness()
     h.mesh.applyEvent(createdEvent("ses_self"))
     const output = await h.status(undefined)
     assert.match(output, /2 locations owned/)
+    assert.match(output, /2 refused loads/, "the guard-refused twin loads reach the model")
+  } finally {
+    if (previous === undefined) delete holder.__crosstalk
+    else holder.__crosstalk = previous
+  }
+})
+
+test("status self-check degrades when the guard shape is unexpected", async () => {
+  const holder = globalThis as { __crosstalk?: unknown }
+  const previous = holder.__crosstalk
+  holder.__crosstalk = { owners: new Map([["dir-a", Symbol("a")]]) }
+  try {
+    const h = harness()
+    h.mesh.applyEvent(createdEvent("ses_self"))
+    const output = await h.status(undefined)
+    assert.doesNotMatch(output, /locations|refused/, "no refused counter in the shape: the whole check is omitted, not guessed")
   } finally {
     if (previous === undefined) delete holder.__crosstalk
     else holder.__crosstalk = previous

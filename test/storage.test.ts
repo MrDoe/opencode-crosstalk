@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { MeshStore } from "../src/storage.ts"
+import { MeshStore, meshStorageKey } from "../src/storage.ts"
 import { SNAPSHOT_VERSION } from "../src/core/mesh.ts"
 import type { MeshSnapshot } from "../src/types.ts"
 import { createFakeStorage } from "./helpers/fakes.ts"
@@ -67,6 +67,16 @@ test("load rejects payloads that are not snapshots", async () => {
     const store = new MeshStore(createFakeStorage({ "crosstalk/proj-1": bad }), { key: "crosstalk" })
     assert.equal(await store.load("proj-1"), undefined, `payload ${JSON.stringify(bad)} must be rejected`)
   }
+})
+
+test("meshStorageKey is the shared formula the class delegates to", () => {
+  assert.equal(meshStorageKey("crosstalk", "proj-1"), "crosstalk/proj-1")
+  assert.equal(meshStorageKey("crosstalk", undefined), "crosstalk/global")
+  assert.equal(
+    new MeshStore(createFakeStorage(), { key: "crosstalk" }).keyFor("proj-9"),
+    meshStorageKey("crosstalk", "proj-9"),
+    "the class method and the exported helper cannot drift",
+  )
 })
 
 test("load rejects a snapshot from another version", async () => {

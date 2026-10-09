@@ -26,7 +26,14 @@ export interface StorageLike {
 export interface MeshStoreOptions {
   /** Key prefix; per-project keys are appended. */
   key: string
-  version?: number
+}
+
+/**
+ * The one storage-key formula, shared by the store and the status self-check
+ * so the line the model reads names the key the state actually lives under.
+ */
+export function meshStorageKey(prefix: string, projectID: string | undefined): string {
+  return `${prefix}/${projectID ?? "global"}`
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -36,16 +43,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export class MeshStore {
   readonly #storage: StorageLike
   readonly #key: string
-  readonly #version: number
 
   constructor(storage: StorageLike, options: MeshStoreOptions) {
     this.#storage = storage
     this.#key = options.key
-    this.#version = options.version ?? SNAPSHOT_VERSION
   }
 
   keyFor(projectID: string | undefined): string {
-    return `${this.#key}/${projectID ?? "global"}`
+    return meshStorageKey(this.#key, projectID)
   }
 
   async save(snapshot: MeshSnapshot, projectID?: string): Promise<void> {
@@ -67,11 +72,11 @@ export class MeshStore {
     }
     if (!isRecord(raw)) return undefined
     const version = raw.version
-    if (version !== this.#version && version !== LEGACY_SNAPSHOT_VERSION) return undefined
+    if (version !== SNAPSHOT_VERSION && version !== LEGACY_SNAPSHOT_VERSION) return undefined
     if (!Array.isArray(raw.peers) || !Array.isArray(raw.claims)) return undefined
     if (typeof raw.savedAt !== "number") return undefined
     return {
-      version: version === LEGACY_SNAPSHOT_VERSION ? LEGACY_SNAPSHOT_VERSION : this.#version,
+      version: version === LEGACY_SNAPSHOT_VERSION ? LEGACY_SNAPSHOT_VERSION : SNAPSHOT_VERSION,
       savedAt: raw.savedAt,
       peers: raw.peers.filter(isRecord) as unknown as MeshSnapshot["peers"],
       claims: raw.claims.filter(isRecord) as unknown as MeshSnapshot["claims"],
