@@ -27,13 +27,37 @@ export function ellipsis(value: string, max: number): string {
   return `${flat.slice(0, Math.max(0, max - 1))}…`
 }
 
+/**
+ * A summary younger than this is current. The peer line annotates its age only
+ * once a session has stopped refreshing it: a running session's live status
+ * needs no timestamp to be trusted, and every peer line paying for a clock it
+ * does not need is noise.
+ */
+export const SUMMARY_FRESH_MS = 5 * 60_000
+
+/**
+ * How long ago the peer declared its summary — ` (14m ago)`, or an empty
+ * string while it is fresh, missing (declared before the feature, or restored
+ * from a snapshot that predates it), or clock-skewed into the future.
+ */
+function summaryAge(peer: PeerView, now: number): string {
+  const at = peer.declared?.summaryAt
+  if (at === undefined || now - at < SUMMARY_FRESH_MS) return ""
+  return ` (${relativeAge(at, now)} ago)`
+}
+
 function peerLine(peer: PeerView, now: number, scope: Scope): string {
   const parts = [`- ${peer.sessionID}`]
   if (peer.declared?.name) parts.push(`(${ellipsis(peer.declared.name, 32)})`)
   if (peer.isSelf) parts.push("(you)")
   parts.push(peer.stale ? `${peer.status}?` : peer.status)
   if (peer.declared?.role) parts.push(`role=${ellipsis(peer.declared.role, 24)}`)
-  if (peer.declared?.summary) parts.push(`summary="${ellipsis(peer.declared.summary, 60)}"`)
+  if (peer.declared?.goal) parts.push(`goal="${ellipsis(peer.declared.goal, 60)}"`)
+  // The self view prints role → goal → summary; keep a peer's line in the same
+  // order, with the summary's age once it stops being fresh.
+  if (peer.declared?.summary) {
+    parts.push(`summary="${ellipsis(peer.declared.summary, 60)}"${summaryAge(peer, now)}`)
+  }
   if (peer.title) parts.push(`"${ellipsis(peer.title, 48)}"`)
   if (peer.agent) parts.push(peer.agent)
   parts.push(`active ${relativeAge(peer.lastSeen, now)} ago`)

@@ -284,6 +284,7 @@ export class Mesh {
       role: declared.role ?? previous?.role,
       goal: declared.goal ?? previous?.goal,
       summary: declared.summary ?? previous?.summary,
+      summaryAt: declared.summary !== undefined ? this.#clock.now() : previous?.summaryAt,
       note: declared.note ?? previous?.note,
       avatar: declared.avatar ?? previous?.avatar,
       workingOn: declared.workingOn ?? previous?.workingOn,

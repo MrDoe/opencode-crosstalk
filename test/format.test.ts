@@ -108,6 +108,44 @@ test("formatStatus ellipsizes a peer's summary so the line stays readable", () =
   assert.doesNotMatch(output, /summary="s{60}"/, "nothing longer than the budget survives")
 })
 
+test("formatStatus shows a peer's goal and its summary, in that order", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [peer({ sessionID: "ses_b", declared: { goal: "port auth", summary: "handlers half done" } })],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(output, /goal="port auth" {2}summary="handlers half done"/)
+})
+
+test("formatStatus annotates a summary's age only once it stops being fresh", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true }),
+    peers: [
+      peer({ sessionID: "ses_stale", declared: { summary: "porting handlers", summaryAt: NOW - 14 * 60_000 } }),
+      peer({ sessionID: "ses_fresh", declared: { summary: "porting handlers", summaryAt: NOW - 60_000 } }),
+      peer({ sessionID: "ses_undated", declared: { summary: "porting handlers" } }),
+      peer({ sessionID: "ses_future", declared: { summary: "porting handlers", summaryAt: NOW + 60_000 } }),
+    ],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(output, /- ses_stale {2}running {2}summary="porting handlers" \(14m ago\)/, "an aging summary says how old it is")
+  assert.match(output, /- ses_fresh {2}running {2}summary="porting handlers" {2}/, "a fresh summary needs no timestamp")
+  assert.match(output, /- ses_undated {2}running {2}summary="porting handlers" {2}/, "an undated summary is not annotated")
+  assert.match(output, /- ses_future {2}running {2}summary="porting handlers" {2}/, "a clock-skewed one stays unannotated")
+})
+
+test("a summary that only ever lived in the self view has no peer-line shape yet", () => {
+  const output = formatStatus({
+    self: peer({ sessionID: "ses_self", isSelf: true, declared: { summary: "reading auth handlers" } }),
+    peers: [],
+    scope: "project",
+    now: NOW,
+  })
+  assert.match(output, / {2}summary: reading auth handlers/, "the self block prints the full text, unellipsized")
+})
+
 test("formatStatus says so when the session is alone", () => {
   const output = formatStatus({ self: peer({ sessionID: "ses_self", isSelf: true }), peers: [], scope: "server", now: NOW })
   assert.match(output, /0 peers, 0 running, 0 idle/)

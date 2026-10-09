@@ -10,15 +10,23 @@
 import { readFileSync } from "node:fs"
 import { Plugin, usePlugin } from "@opencode/plugin/tui"
 import { Show, createMemo, createSignal } from "solid-js"
+import { TextAttributes } from "@opentui/core"
 import type { DirectoryEntry, DirectoryPayload } from "../core/directory.ts"
 import { normalizeResource } from "../core/claims.ts"
 import { CrosstalkRpc } from "../rpc.ts"
-import { emoticonFor, entryForPortrait, summaryText, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
+import { emoticonFor, entryForPortrait, isSummaryStale, summaryText, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
 
 const manifestUrl = new URL("../../assets/avatars/manifest.json", import.meta.url)
 
 /** Width of the avatar art, and so of the column the summary wraps inside. */
 const AVATAR_WIDTH = 29
+
+/**
+ * How often the sidebar re-checks whether a summary went stale. The directory
+ * is only rebuilt on mesh mutations, and a session nobody talks to emits
+ * none — without this tick an untouched summary could stay undimmed forever.
+ */
+const SUMMARY_TICK_MS = 30_000
 
 function loadEntries(): AvatarEntry[] {
   try {
@@ -58,7 +66,13 @@ function inPlace(candidate: string | undefined, home: string): boolean {
   return other === base || other.startsWith(`${base}/`)
 }
 
-function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayload; entries: readonly AvatarEntry[] }) {
+function AvatarLine(props: {
+  sessionID: string
+  directory: () => DirectoryPayload
+  entries: readonly AvatarEntry[]
+  /** Starts a fresh staleness evaluation; see `SUMMARY_TICK_MS`. */
+  tick: () => number
+}) {
   const context = usePlugin()
   const [failed, setFailed] = createSignal(false)
   const session = () => props.directory().sessions.find((entry) => entry.sessionID === props.sessionID)
@@ -66,6 +80,12 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
   // session is doing right now, re-read from the directory so every refreshed
   // declaration shows up without a reload.
   const summary = () => summaryText(session())
+  // Dimmed once the summary stops being refreshed: read on the tick so the dim
+  // arrives on its own, without waiting for the next directory push.
+  const stale = createMemo(() => {
+    props.tick()
+    return isSummaryStale(session()?.summaryAt, Date.now())
+  })
   // The server froze the portrait when the session first declared a task;
   // a session without one has no task and shows no avatar. A portrait whose
   // art left the manifest is not swapped for another — it shows nothing.
@@ -99,7 +119,12 @@ function AvatarLine(props: { sessionID: string; directory: () => DirectoryPayloa
           <text fg={context.theme.text.muted}>{session()?.role ?? ""}</text>
           <Show when={summary()}>
             {() => (
-              <text fg={context.theme.text.muted} width={AVATAR_WIDTH} wrapMode="word">
+              <text
+                fg={context.theme.text.muted}
+                width={AVATAR_WIDTH}
+                wrapMode="word"
+                attributes={stale() ? TextAttributes.DIM : TextAttributes.NONE}
+              >
                 {summary()}
               </text>
             )}
@@ -118,6 +143,10 @@ export default Plugin.define({
   async setup(context) {
     const entries = loadEntries()
     const [directory, setDirectory] = createSignal<DirectoryPayload>({ sessions: [] })
+    // Slow tick for the summary's staleness dim; see `SUMMARY_TICK_MS`.
+    const [tick, setTick] = createSignal(0)
+    const summaryClock = setInterval(() => setTick((value) => value + 1), SUMMARY_TICK_MS)
+    summaryClock.unref?.()
     const rpc = context.client.rpc(CrosstalkRpc)
     const location = context.location ?? context.data.location.default()
 
@@ -173,12 +202,15 @@ export default Plugin.define({
 
     const unregister = context.ui.slot({
       append: "sidebar.content",
-      render: (input) => <AvatarLine sessionID={input.sessionID} directory={directory} entries={entries} />,
+      render: (input) => (
+        <AvatarLine sessionID={input.sessionID} directory={directory} entries={entries} tick={tick} />
+      ),
     })
 
     return () => {
       unsubscribe()
       unregister()
+      clearInterval(summaryClock)
     }
   },
 })

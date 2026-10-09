@@ -46,12 +46,42 @@ test("declare merges, leaving unmentioned fields alone, and refreshes activity",
 })
 
 test("a summary refresh is a partial declaration like any other", () => {
-  const { mesh } = createTestMesh()
+  const { mesh, clock } = createTestMesh()
   mesh.declare("ses_self", { role: "reviewer", goal: "audit auth", summary: "reading auth handlers" })
+  const stamped = mesh.registry.get("ses_self")?.declared?.summaryAt
+  assert.equal(stamped, clock.now(), "declaring a summary stamps it")
+
+  clock.advance(60_000)
+  const other = mesh.declare("ses_self", { goal: "audit auth + sessions" })
+  assert.equal(
+    other.view.declared?.summaryAt,
+    stamped,
+    "declaring another field does not re-stamp the summary's age",
+  )
+
+  clock.advance(60_000)
   const refreshed = mesh.declare("ses_self", { summary: "handlers done, on the store" })
   assert.equal(refreshed.view.declared?.summary, "handlers done, on the store", "the summary is replaced")
-  assert.equal(refreshed.view.declared?.goal, "audit auth", "the goal survives a summary-only refresh")
+  assert.equal(refreshed.view.declared?.goal, "audit auth + sessions", "the goal survives a summary-only refresh")
   assert.equal(refreshed.view.declared?.role, "reviewer", "so does the role")
+  assert.equal(
+    refreshed.view.declared?.summaryAt,
+    clock.now(),
+    "the summary's own age moves with it, so staleness tracks the text — not the declaration",
+  )
+})
+
+test("a summary restored from a snapshot carries no age", () => {
+  const { mesh } = createTestMesh()
+  mesh.restore({
+    version: SNAPSHOT_VERSION,
+    savedAt: 0,
+    peers: [{ sessionID: "ses_old", status: "idle", lastSeen: 1, declared: { summary: "from an older build" } }],
+    claims: [],
+  })
+  const restored = mesh.registry.get("ses_old")
+  assert.equal(restored?.declared?.summary, "from an older build", "the text survives")
+  assert.equal(restored?.declared?.summaryAt, undefined, "its age does not exist, so nothing is annotated or dimmed")
 })
 
 test("subscribe observes declarations and events", () => {

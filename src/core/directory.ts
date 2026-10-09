@@ -17,6 +17,8 @@ export type DirectoryEntry = {
   goal?: string
   /** Live status: 1-2 short sentences, refreshed as the session's work moves. */
   summary?: string
+  /** When `summary` was declared, so a viewer can tell how current it is. */
+  summaryAt?: number
   avatar?: string
   directory?: string
   projectID?: string
@@ -35,6 +37,7 @@ export function directoryPayload(mesh: Mesh): DirectoryPayload {
     if (peer.declared?.role !== undefined) entry.role = peer.declared.role
     if (peer.declared?.goal !== undefined) entry.goal = peer.declared.goal
     if (peer.declared?.summary !== undefined) entry.summary = peer.declared.summary
+    if (peer.declared?.summaryAt !== undefined) entry.summaryAt = peer.declared.summaryAt
     if (peer.declared?.avatar !== undefined) entry.avatar = peer.declared.avatar
     if (peer.directory !== undefined) entry.directory = peer.directory
     if (peer.projectID !== undefined) entry.projectID = peer.projectID

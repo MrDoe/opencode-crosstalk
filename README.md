@@ -139,6 +139,13 @@ browse the pool by opening `assets/avatars/index.html` in a browser):
   pushed to the TUI on every declaration (the same debounced `changed` event,
   see below), refreshing it with the next `crosstalk_status` call updates the
   sidebar within a second — keep it current as your task moves.
+- Freshness is visible, not enforced. A peer line annotates its summary's age
+  once it is more than five minutes old — `summary="handlers half done" (14m
+  ago)` — so a reader can tell a current summary from a stale one, and the
+  sidebar dims the same summary after a quarter hour of no refresh (a 30s
+  background tick, so it dims even for a session that emits nothing). A summary
+  restored from a snapshot written before this feature carries no age: it is
+  shown, annotated with nothing, and never dimmed.
 - An avatar appears when the session has a task: the first `crosstalk_status`
   that carries a role or a goal freezes one portrait onto the session, and
   nothing changes it afterwards — a later role, name, or avatar hint cannot

@@ -156,6 +156,23 @@ export function titleWithEmoticon(
 export const SUMMARY_MAX = 200
 
 /**
+ * A summary older than this is dimmed in the sidebar. The session probably
+ * moved on and has not said so, and an undimmed stale line reads as a promise
+ * the session did not make. Mirrors the peer-line rule: an agent-facing age at
+ * five minutes, a human-facing dim at fifteen.
+ */
+export const STALE_SUMMARY_MS = 15 * 60_000
+
+/**
+ * Whether a summary is old enough to dim. A missing timestamp — a declaration
+ * from before the feature, or a snapshot that predates it — never dims: there
+ * is no evidence it is stale, only an absence of evidence.
+ */
+export function isSummaryStale(at: number | undefined, now: number): boolean {
+  return at !== undefined && now - at > STALE_SUMMARY_MS
+}
+
+/**
  * The status summary under one avatar: what the session says it is doing right
  * now, flattened onto a single line so the renderer wraps it itself. The
  * declared summary wins; a session that never wrote one falls back to its goal,

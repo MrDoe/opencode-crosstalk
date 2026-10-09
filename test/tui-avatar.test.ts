@@ -7,10 +7,12 @@ import {
   emoticonFor,
   entryForPortrait,
   hash,
+  isSummaryStale,
   poolHint,
   stripEmoticon,
   summaryText,
   titleWithEmoticon,
+  STALE_SUMMARY_MS,
   SUMMARY_MAX,
   type AvatarEntry,
 } from "../src/tui/avatar.ts"
@@ -160,4 +162,19 @@ test("summaryText reports nothing when there is nothing to show", () => {
   assert.equal(summaryText(undefined), undefined)
   assert.equal(summaryText({ summary: "  \n " }), undefined, "whitespace is not a summary")
   assert.equal(summaryText({ goal: "" }), undefined)
+})
+
+// ── summary staleness ────────────────────────────────────────────────────────
+
+test("isSummaryStale dims only summaries past the window", () => {
+  const now = 1_000_000_000
+  assert.equal(isSummaryStale(now - STALE_SUMMARY_MS - 1, now), true, "past the window dims")
+  assert.equal(isSummaryStale(now - STALE_SUMMARY_MS + 1, now), false, "just inside it stays bright")
+  assert.equal(isSummaryStale(now, now), false, "a current one stays bright")
+})
+
+test("isSummaryStale never dims a summary it cannot date", () => {
+  assert.equal(isSummaryStale(undefined, Date.now()), false, "no timestamp: no evidence, no dim")
+  assert.equal(isSummaryStale(Date.now() + 60_000, Date.now()), false, "a future one stays bright")
+  assert.equal(STALE_SUMMARY_MS, 15 * 60_000, "a quarter hour, matching the coordinator's assignment")
 })

@@ -124,6 +124,28 @@ test("status rejects an over-long summary instead of truncating it", async () =>
   assert.match(output, /^crosstalk: "summary" is 201 characters; the limit is 200$/)
 })
 
+test("peers shows a peer's goal and how old its summary is", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ goal: "port auth", summary: "handlers half done" }, "ses_peer")
+  h.clock.advance(14 * 60_000)
+
+  const output = await h.peers({})
+  assert.match(output, /goal="port auth" {2}summary="handlers half done" \(14m ago\)/)
+})
+
+test("peers leaves a fresh summary undated", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ summary: "handlers half done" }, "ses_peer")
+
+  const output = await h.peers({})
+  assert.match(output, /summary="handlers half done" {2}/, "a fresh summary is simply reported")
+  assert.doesNotMatch(output, /summary="handlers half done" \(/, "without an age")
+})
+
 test("status hints at a missing summary while peers are listening", async () => {
   const h = harness()
   h.mesh.applyEvent(createdEvent("ses_self"))

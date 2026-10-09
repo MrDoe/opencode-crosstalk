@@ -29,6 +29,13 @@ export interface Declared {
    * re-declared whenever the task changes.
    */
   summary?: string
+  /**
+   * When `summary` was last declared, in ms. Refreshing any other declared
+   * field leaves it alone, so it ages the *summary* rather than the
+   * declaration. Absent for summaries restored from a snapshot written by an
+   * older version — those are neither annotated nor dimmed, just shown.
+   */
+  summaryAt?: number
   workingOn?: string[]
   note?: string
   /**

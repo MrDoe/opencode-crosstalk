@@ -383,6 +383,7 @@ test("the RPC directory exposes declared sessions", async () => {
       name?: string
       role?: string
       summary?: string
+      summaryAt?: number
       avatar?: string
       portrait?: string
     }>
@@ -391,6 +392,7 @@ test("the RPC directory exposes declared sessions", async () => {
   assert.equal(rita?.name, "Rita")
   assert.equal(rita?.role, "coder")
   assert.equal(rita?.summary, "rewriting the session store")
+  assert.equal(typeof rita?.summaryAt, "number", "the summary carries its age for the TUI's dimming")
   assert.equal(rita?.avatar, "👩")
   const frozen = rita?.portrait
   assert.ok(frozen !== undefined && /^(female|male)\//.test(frozen), "a task-bearing declaration carries a frozen portrait")
