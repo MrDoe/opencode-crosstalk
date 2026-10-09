@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { Mesh, SNAPSHOT_VERSION } from "../src/core/mesh.ts"
+import { Mesh, SNAPSHOT_VERSION, LEGACY_SNAPSHOT_VERSION } from "../src/core/mesh.ts"
 import { createdEvent, createManualClock, createTestMesh, event, meshOptions } from "./helpers/fakes.ts"
 
 test("peers excludes the caller and decorates with unread counts and claims", async () => {
@@ -164,6 +164,29 @@ test("a snapshot from another version is ignored entirely", () => {
     claims: [],
   })
   assert.equal(mesh.registry.get("ses_x"), undefined, "state from another era is not half-read")
+})
+
+test("a v1 snapshot keeps declarations and frozen portraits but loses its claims", () => {
+  const { mesh } = createTestMesh()
+  mesh.restore({
+    version: LEGACY_SNAPSHOT_VERSION,
+    savedAt: 0,
+    peers: [
+      {
+        sessionID: "ses_full",
+        status: "idle",
+        lastSeen: 1,
+        declared: { name: "Legacy", role: "driver" },
+        portrait: "male/3-pilot.png",
+      },
+      { sessionID: "ses_bare", status: "idle", lastSeen: 1 },
+    ],
+    claims: [{ key: "/repo/a.ts", raw: "a.ts", holder: "ses_full", acquired: 0, expires: Number.MAX_SAFE_INTEGER }],
+  })
+  assert.equal(mesh.registry.get("ses_full")?.portrait, "male/3-pilot.png", "frozen art survives the upgrade")
+  assert.equal(mesh.registry.get("ses_full")?.declared?.name, "Legacy", "the session need not re-declare")
+  assert.equal(mesh.registry.get("ses_bare")?.declared, undefined, "a never-declared session stays task-less")
+  assert.equal(mesh.claims.entries().length, 0, "legacy leases are not resurrected")
 })
 
 test("send to a known peer delivers and records in their mailbox", async () => {

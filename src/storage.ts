@@ -8,7 +8,7 @@
  */
 
 import type { MeshSnapshot } from "./types.ts"
-import { SNAPSHOT_VERSION } from "./core/mesh.ts"
+import { SNAPSHOT_VERSION, LEGACY_SNAPSHOT_VERSION } from "./core/mesh.ts"
 
 export interface StorageScanPage {
   entries: ReadonlyArray<{ key: string; value: unknown }>
@@ -54,8 +54,9 @@ export class MeshStore {
 
   /**
    * Read a snapshot, tolerating anything unusable. A missing, malformed,
-   * foreign-version, or JSON-unserializable payload yields `undefined` rather
-   * than an error: a broken cache must never stop a plugin from loading.
+   * unknown-version, or JSON-unserializable payload yields `undefined` rather
+   * than an error: a broken cache must never stop a plugin from loading. The
+   * legacy v1 version passes through untouched for `Mesh.restore` to migrate.
    */
   async load(projectID?: string): Promise<MeshSnapshot | undefined> {
     let raw: unknown
@@ -65,11 +66,12 @@ export class MeshStore {
       return undefined
     }
     if (!isRecord(raw)) return undefined
-    if (raw.version !== this.#version) return undefined
+    const version = raw.version
+    if (version !== this.#version && version !== LEGACY_SNAPSHOT_VERSION) return undefined
     if (!Array.isArray(raw.peers) || !Array.isArray(raw.claims)) return undefined
     if (typeof raw.savedAt !== "number") return undefined
     return {
-      version: this.#version,
+      version: version === LEGACY_SNAPSHOT_VERSION ? LEGACY_SNAPSHOT_VERSION : this.#version,
       savedAt: raw.savedAt,
       peers: raw.peers.filter(isRecord) as unknown as MeshSnapshot["peers"],
       claims: raw.claims.filter(isRecord) as unknown as MeshSnapshot["claims"],

@@ -122,12 +122,18 @@ export interface DeclareResult {
 }
 
 /**
- * Bumped to 2 because twin plugin instances could each persist to the same
- * key and clobber each other's records; `restore` ignores any snapshot not
- * written by its own version, so an installation with damaged state starts
- * honest instead of half-remembering it.
+ * Bumped to 2 when twin plugin instances could each persist to the same key
+ * and clobber each other's records. v1 is still migrated rather than dropped:
+ * its peer records were written under the same freeze contract, so a long-run
+ * session carries its declarations and frozen portrait across the upgrade —
+ * discarding them would change art the user already sees, breaking the never-
+ * change rule. Only v1's claims are discarded, because the lease table is what
+ * the twins corrupted; a snapshot from any other era is ignored whole.
  */
 export const SNAPSHOT_VERSION = 2
+
+/** The one older format whose peer records `restore` still carries forward. */
+export const LEGACY_SNAPSHOT_VERSION = 1
 
 export class Mesh {
   readonly registry: Registry
@@ -715,10 +721,14 @@ export class Mesh {
    * keeps its freshness and only receives fields the stream never carried
    * (declarations, project, directory); a session the registry has not seen is
    * restored wholesale. Restored claims are dropped when the same key is
-   * already held.
+   * already held. A v1 snapshot is migrated rather than rejected: peers (with
+   * their declarations and frozen portraits) are carried forward, but none of
+   * its claims are adopted — that lease table is exactly what the twin
+   * instances corrupted, and a resurrected ghost lease would harm live peers.
    */
   restore(snapshot: MeshSnapshot): void {
-    if (snapshot.version !== SNAPSHOT_VERSION) return
+    const legacy = snapshot.version === LEGACY_SNAPSHOT_VERSION
+    if (!legacy && snapshot.version !== SNAPSHOT_VERSION) return
     for (const peer of snapshot.peers) {
       if (!peer || typeof peer.sessionID !== "string") continue
       const live = this.registry.get(peer.sessionID)
@@ -747,6 +757,7 @@ export class Mesh {
       if (peer.declared !== undefined) restored.declared = peer.declared
       if (peer.portrait !== undefined) restored.portrait = peer.portrait
     }
+    if (legacy) return
     const held = new Set(this.claims.entries().map((claim) => claim.key))
     for (const claim of snapshot.claims) {
       if (!claim || typeof claim.key !== "string" || held.has(claim.key)) continue

@@ -76,6 +76,14 @@ test("load rejects a snapshot from another version", async () => {
   assert.equal(await store.load("proj-1"), undefined)
 })
 
+test("load passes a legacy v1 snapshot through untouched for migration", async () => {
+  const store = new MeshStore(createFakeStorage({ "crosstalk/proj-1": snapshot({ version: 1 }) }), {
+    key: "crosstalk",
+  })
+  const loaded = await store.load("proj-1")
+  assert.equal(loaded?.version, 1, "the legacy version must reach Mesh.restore intact")
+})
+
 test("load drops individual malformed entries but keeps the snapshot", async () => {
   const store = new MeshStore(
     createFakeStorage({

@@ -314,6 +314,38 @@ test("a snapshot on disk is restored into a fresh mesh", async () => {
   await fake.cleanup()
 })
 
+test("a v1 snapshot on disk migrates: declarations survive, leases do not", async () => {
+  const snapshot = {
+    version: 1,
+    savedAt: 0,
+    peers: [
+      {
+        sessionID: "ses_old",
+        status: "running" as const,
+        lastSeen: Date.now(),
+        title: "upgraded",
+        declared: { name: "Legacy", role: "driver" },
+        portrait: "male/3-pilot.png",
+      },
+    ],
+    claims: [{ key: "/repo/src/a.ts", raw: "src/a.ts", holder: "ses_old", acquired: 0, expires: Date.now() + 60_000 }],
+  }
+  const fake = await setup(undefined, { "crosstalk/proj-1": snapshot })
+
+  const listed = await fake.editor.byName("peers").execute(
+    { scope: "server" },
+    { sessionID: "ses_new" as never, signal: new AbortController().signal, progress: async () => {} } as never,
+  )
+  assert.match(String(listed.content), /Legacy/, "the declaration is carried across the upgrade")
+
+  const claimed = await fake.editor.byName("claim").execute(
+    { action: "list" },
+    { sessionID: "ses_old" as never, signal: new AbortController().signal, progress: async () => {} } as never,
+  )
+  assert.doesNotMatch(String(claimed.content), /src\/a\.ts/, "the twin-warped lease is not resurrected")
+  await fake.cleanup()
+})
+
 test("cleanup disposes the tools and the hook, and stops consuming events", async () => {
   const fake = await setup()
   assert.equal(fake.editor.added.length, 6)
