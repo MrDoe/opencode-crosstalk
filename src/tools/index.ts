@@ -1,12 +1,13 @@
 /**
  * @fileoverview Tool registration.
  *
- * All six tools share one namespace and one permission action, so a project can
+ * All seven tools share one namespace and one permission action, so a project can
  * allow or deny coordination with a single rule.
  */
 
 import type { ToolEditor } from "@opencode/plugin/promise/tool"
 import { claimTool } from "./claim.ts"
+import { heartbeatTool } from "./heartbeat.ts"
 import { inboxTool } from "./inbox.ts"
 import { peersTool } from "./peers.ts"
 import { sendTool } from "./send.ts"
@@ -25,6 +26,7 @@ export const toolFactories: Array<(deps: ToolDeps) => CrosstalkToolInfo> = [
   sendTool,
   inboxTool,
   claimTool,
+  heartbeatTool,
   waitTool,
 ]
 
@@ -57,4 +59,4 @@ export function registerTools(editor: ToolEditor, deps: ToolDeps): void {
   }
 }
 
-export { claimTool, inboxTool, peersTool, sendTool, statusTool, waitTool }
+export { claimTool, heartbeatTool, inboxTool, peersTool, sendTool, statusTool, waitTool }

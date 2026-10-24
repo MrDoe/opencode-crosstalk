@@ -47,7 +47,7 @@ function harness(options: TestMeshOptions = {}, optionOverrides = {}): Harness {
 
 // ── registration ─────────────────────────────────────────────────────────────
 
-test("registration publishes one namespace and six namespaced tools", () => {
+test("registration publishes one namespace and seven namespaced tools", () => {
   const h = harness()
   assert.equal(h.editor.namespaces.length, 1)
   assert.equal(h.editor.namespaces[0]?.name, "crosstalk")
@@ -58,9 +58,10 @@ test("registration publishes one namespace and six namespaced tools", () => {
     "crosstalk_send",
     "crosstalk_inbox",
     "crosstalk_claim",
+    "crosstalk_heartbeat",
     "crosstalk_wait",
   ])
-  assert.equal(toolFactories.length, 6)
+  assert.equal(toolFactories.length, 7)
 })
 
 test("every tool carries the configured namespace, permission, and codemode flag", () => {

@@ -229,7 +229,7 @@ never fires.
   opens with `{ "action": "*", "resource": "*", "effect": "allow" }`, so the
   `crosstalk` action already resolves to allow. The rule from the README exists to
   *control* the action: one `{ "action": "crosstalk", "resource": "*", ... }` rule
-  covers all six tools (or six, if the `permission` option is changed so the action
+  covers all seven tools (or seven, if the `permission` option is changed so the action
   falls back to each effective tool name). A rule that *blocks* the action keeps the
   tools out of the catalog entirely, so the model never sees them; `ask` prompts.
 - Plugin id is `opencode.crosstalk`; disable with `plugins: ["-opencode.crosstalk"]`.

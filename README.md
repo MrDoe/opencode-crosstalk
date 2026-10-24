@@ -7,7 +7,7 @@ Two agents in the same repository cannot discover each other, cannot say "I'm in
 `src/auth/` right now", and — most expensively — cannot stop each other from
 writing the same file at the same time. Which means the second agent usually
 discovers the first one's work by reading a half-applied diff during the
-postmortem. This plugin adds six tools that make all three ordinary.
+postmortem. This plugin adds seven tools that make all three ordinary.
 
 ```
 crosstalk_status   declare your role and see who else is here
@@ -16,6 +16,7 @@ crosstalk_send     message a peer, a role, or everyone
 crosstalk_inbox    read replies, optionally blocking until one arrives
 crosstalk_claim    take an exclusive, expiring lease on a file
 crosstalk_wait     block until a peer is idle or a file is released
+crosstalk_heartbeat send a message to a peer on a repeating interval
 ```
 
 All six share one namespace and one permission action (`crosstalk`), so a project
@@ -95,7 +96,7 @@ your-project/.opencode/plugins/crosstalk/   →  symlink or copy this package he
 
 No permission rule is needed to *use* the tools: OpenCode's base policy allows
 every action, so `crosstalk` already resolves to allow. Add a rule when you want
-to control the plugin rather than enable it — one rule covers all six tools:
+to control the plugin rather than enable it — one rule covers all seven tools:
 
 ```jsonc title="opencode.jsonc"
 {
@@ -367,7 +368,7 @@ All optional; set them with the object form of `plugins`:
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `namespace` | `crosstalk` | Tool namespace. Dots are rejected: the host rewrites them to `_`. |
-| `permission` | `crosstalk` | Permission action for all six tools. |
+| `permission` | `crosstalk` | Permission action for all seven tools. |
 | `codemode` | `false` | Expose the tools through Code Mode instead of directly. |
 | `scope` | `project` | Peer visibility: `project`, `location`, or `server`. |
 | `staleAfterMs` | `600000` | Silence after which a peer is flagged stale. |
@@ -394,7 +395,7 @@ Both were confirmed against the host's own tool snapshot, which reads roughly
 and splits tools on `options.codemode === false` (direct) versus everything else
 (Code Mode catalog). So:
 
-- `permission: "crosstalk"` makes the action that gates all six tools. Without
+- `permission: "crosstalk"` makes the action that gates all seven tools. Without
   it, the action would fall back to the effective tool name — `crosstalk_status`,
   `crosstalk_claim`, and so on — needing six rules instead of one.
 - `codemode: false` is what makes the tools directly callable. Setting it to
