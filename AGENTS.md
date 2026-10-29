@@ -38,7 +38,7 @@ npm run test:e2e    # spawns a real opencode + real model calls; see below
 | `index.ts` | Host directory entrypoint — re-exports `src/index.ts`. Required: the host resolves plugin directories by a root `index.ts`/`index.js` and ignores `package.json` `main`/`exports`; a directory without one is dropped silently. |
 | `src/index.ts` | **The server-side** runtime importer of `@opencode/plugin` (`Plugin.define`). Wires mesh + event pump + tools + briefing hook + the crosstalk RPC, and returns the cleanup that undoes all of it. |
 | `src/core/` | Host-free coordination logic. `mesh.ts` is the façade over `Registry` (presence), `Mailbox`, `ClaimTable`; `avatar.ts` is the pure portrait selection the mesh freezes per session; also the package's `./core` export. |
-| `src/tools/` | The six `crosstalk_*` tool definitions. `args.ts` is the input validator, `types.ts` the shared plumbing. |
+| `src/tools/` | The seven `crosstalk_*` tool definitions. `args.ts` is the input validator, `types.ts` the shared plumbing. |
 | `src/rpc.ts` | The RPC contract shared by the server and CLI plugins — a plain object with a type-only import, so neither process needs a runtime plugin module for it. |
 | `tui.ts` | Host entrypoint for the CLI (TUI) plugin — re-exports `src/tui/index.tsx`. The host discovers a TUI entrypoint beside the server entry (`tui.ts` next to `index.ts`). |
 | `src/tui/` | CLI plugin. `index.tsx` renders the sidebar avatar; `avatar.ts` maps the frozen portrait to its emoticon and title prefix. |
@@ -282,7 +282,8 @@ never fires.
 
 Other OpenCode sessions in this workspace are reachable through the
 `opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
-`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
+`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_heartbeat`,
+`crosstalk_wait`.
 Write in **English only** and keep everything token-tight: one short sentence
 per status, message, or claim note (who, what, where) — no reports, no
 summaries, no pleasantries. Keep working; only stop for coordination that

@@ -19,8 +19,8 @@ crosstalk_wait     block until a peer is idle or a file is released
 crosstalk_heartbeat send a message to a peer on a repeating interval
 ```
 
-All six share one namespace and one permission action (`crosstalk`), so a project
-can allow or deny coordination with a single rule instead of six.
+All seven share one namespace and one permission action (`crosstalk`), so a
+project can allow or deny coordination with a single rule instead of seven.
 
 ## In action
 
@@ -260,7 +260,8 @@ archaeological dig.
 
 Other OpenCode sessions in this workspace are reachable through the
 `opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
-`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_wait`.
+`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_heartbeat`,
+`crosstalk_wait`.
 Write in **English only** and keep everything token-tight: one short sentence
 per status, message, or claim note (who, what, where) — no reports, no
 summaries, no pleasantries. Keep working; only stop for coordination that
@@ -400,7 +401,7 @@ and splits tools on `options.codemode === false` (direct) versus everything else
 
 - `permission: "crosstalk"` makes the action that gates all seven tools. Without
   it, the action would fall back to the effective tool name — `crosstalk_status`,
-  `crosstalk_claim`, and so on — needing six rules instead of one.
+  `crosstalk_claim`, and so on — needing seven rules instead of one.
 - `codemode: false` is what makes the tools directly callable. Setting it to
   `true` moves them into the Code Mode catalog only, where they are reached
   through `execute` rather than called by name. That adds a second gate: the
