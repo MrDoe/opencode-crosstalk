@@ -8,10 +8,11 @@
  * 2. a subscription to the server event stream, which is the only way a plugin
  *    learns that other sessions exist — the plugin context has no
  *    `session.list()`;
- * 3. the six `crosstalk_*` tools, registered under one namespace and one
+ * 3. the seven `crosstalk_*` tools, registered under one namespace and one
  *    permission action;
- * 4. a `context` hook that tells the model the channel exists, so the tools get
- *    used without the user having to ask.
+ * 4. a `context` hook that tells the model the channel exists — in every
+ *    session, including one that is currently alone — so the tools get used
+ *    without the user having to ask.
  *
  * The OpenCode-specific types are imported through the published package, but
  * only as types plus `Plugin.define`, keeping the core free of host coupling.
@@ -58,7 +59,24 @@ function toSessionLike(session: Plugin.Context["session"]): SessionLike {
   }
 }
 
+/**
+ * The lone-session briefing. Every session has to learn that the channel
+ * exists: a session that never declares a name or role is not addressable when
+ * a peer appears later, and the first session in a project always starts alone.
+ * Short on purpose — it is repeated until a peer or a lease shows up.
+ */
+function soloBriefing(): string {
+  return [
+    "Crosstalk is installed in this workspace, so other OpenCode sessions here can coordinate with you.",
+    "Declare once — briefly — with `crosstalk_status`: a unique human name (so peers can address you), your role,",
+    "a goal of a few words, and a one-line `summary` of what you are doing now.",
+    "`crosstalk_peers` shows who else is here; work that does not overlap theirs needs no coordination.",
+    "No other session is on this channel right now.",
+  ].join(" ")
+}
+
 function briefing(peers: number, claims: number): string {
+  if (peers === 0 && claims === 0) return soloBriefing()
   return [
     "Other OpenCode sessions can be working in this repository with you.",
     "Coordinate in English only and keep it token-tight: one short sentence per status, message, or claim.",
@@ -256,7 +274,6 @@ export default Plugin.define({
       ? await ctx.session.hook("context", (event) => {
           const peers = mesh.peers(event.sessionID).length
           const claims = mesh.claims.list({ includeExpired: false }).length
-          if (peers === 0 && claims === 0) return
           event.system.push({ type: "text", text: briefing(peers, claims) })
         })
       : undefined

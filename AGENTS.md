@@ -105,6 +105,12 @@ never fires.
   over `ctx.event.subscribe()` (`Registry.applyEvent`). Don't look for a place
   to add a listing call — it doesn't exist. Consequence: a session already
   mid-turn when the plugin loaded stays invisible until it emits something.
+- **Every session is briefed, including a lone one.** The `context` hook never
+  stays silent: with no peers and no leases it pushes a compact "declare
+  yourself" briefing, because the first session in a project always starts alone
+  and a session that never declares has no name or role when a peer appears.
+  `announce: false` is the only way to remove it — don't restore the old
+  zero-peer early return.
 - **Options must never throw.** `parseOptions` validates, clamps, and degrades
   every bad value to a documented default plus a warning. A typo should not
   cost an agent its tools mid-session. Add new options to `DEFAULTS` and

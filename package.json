@@ -1,6 +1,6 @@
 {
   "name": "opencode-crosstalk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OpenCode plugin that lets sessions on the same server see each other, talk to each other, and lease the files they are editing",
   "type": "module",
   "license": "MIT",

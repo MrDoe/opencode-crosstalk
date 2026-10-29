@@ -114,9 +114,12 @@ sourcemap archaeology.
 
 ## Using it
 
-An agent that knows other sessions exist uses this on its own — the plugin adds a
-short briefing to the system prompt when there is at least one peer or one
-active lease. A typical exchange:
+An agent that knows other sessions exist uses this on its own — the plugin
+briefs every session in its system prompt. A session that is currently alone
+gets a compact declaration nudge, so it acquires a name and a role before a peer
+appears (an undeclared session is not addressable); as soon as one peer or one
+active lease exists, the full coordination briefing takes over. A typical
+exchange:
 
 ```text
 crosstalk_status { name: "Riley", role: "migrator", goal: "port auth off sessions",
@@ -381,7 +384,7 @@ All optional; set them with the object form of `plugins`:
 | `heartbeatMs` | `10000` | Progress heartbeat while blocked; `0` disables. |
 | `persist` | `true` | Persist peers and leases through `ctx.storage`. |
 | `storageKey` | `crosstalk` | Storage key prefix. |
-| `announce` | `true` | Add the coordination briefing to the system prompt. |
+| `announce` | `true` | Brief every session in the system prompt; compact while the session is alone. |
 
 Bad values degrade to the default with a warning; a typo never costs an agent
 its tools mid-session. `parseOptions` never throws — a missing bracket is a log

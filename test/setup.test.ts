@@ -272,28 +272,45 @@ test("a claim from one session blocks the other through the tool surface", async
   await fake.cleanup()
 })
 
-test("the briefing is added only when there is something to say", async () => {
+test("every session is briefed, compact while it is alone", async () => {
   const fake = await setup()
   const handler = fake.hooks[0]?.handler
   assert.ok(handler)
 
-  const withPeers = (sessionID: string) => {
+  const push = (sessionID: string) => {
     const pushed: Array<{ type: string; text: string }> = []
     handler({ sessionID, system: pushed })
     return pushed
   }
 
-  assert.deepEqual(withPeers("ses_a"), [], "no peers and no leases: stay silent")
+  const alone = push("ses_a")
+  assert.equal(alone.length, 1, "a lone session still learns the channel exists")
+  assert.equal(alone[0]?.type, "text")
+  assert.match(alone[0]?.text ?? "", /crosstalk_status/)
+  assert.match(alone[0]?.text ?? "", /No other session is on this channel right now/)
 
   await emit(fake, {
     type: "session.created",
     data: { sessionID: "ses_b", projectID: "proj-1", location: { directory: "/repo" } },
   })
-  const announced = withPeers("ses_a")
+  const announced = push("ses_a")
   assert.equal(announced.length, 1)
   assert.equal(announced[0]?.type, "text")
   assert.match(announced[0]?.text ?? "", /crosstalk_claim/)
   assert.match(announced[0]?.text ?? "", /1 other session is on this channel/)
+  await fake.cleanup()
+})
+
+test("a lease without a peer still gets the full briefing", async () => {
+  const fake = await setup()
+  const context = { sessionID: "ses_a" as never, signal: new AbortController().signal, progress: async () => {} }
+  await fake.editor.byName("claim").execute({ action: "claim", resources: ["src/a.ts"] }, context as never)
+
+  const pushed: Array<{ type: string; text: string }> = []
+  fake.hooks[0]?.handler({ sessionID: "ses_a", system: pushed })
+  assert.equal(pushed.length, 1)
+  assert.match(pushed[0]?.text ?? "", /crosstalk_claim/)
+  assert.match(pushed[0]?.text ?? "", /1 file is already leased/)
   await fake.cleanup()
 })
 
