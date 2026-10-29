@@ -17,3 +17,12 @@ Bumped `package.json`/`package-lock.json` to 0.2.0, committed the always-on
 briefing, tagged `v0.2.0`, pushed `main` + tag, and created the GitHub release.
 npm publish is pending credentials (`npm whoami` → ENEEDAUTH); the tarball
 dry-run is clean.
+
+## [2026-10-29] release | npm 0.2.0 live and staged publishing workflow
+`opencode-crosstalk@0.2.0` is live on npm and `latest` points at it; the
+`0.0.0-stage` stub was the registry's first-publish placeholder and stays in the
+version list. Added `.github/workflows/publish.yml`: `v*` tags run the check,
+verify the tag against `package.json`, and stage with
+`npm stage publish --provenance`; approval happens in the npm web UI with
+browser 2FA. The workflow upgrades npm to 12 first (Node 22 ships npm 10, which
+has no `stage`). `NPM_TOKEN` repository secret still has to be created.
