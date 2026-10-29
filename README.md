@@ -74,6 +74,11 @@ exists to prevent. `npm run setup` uses `~/.opencode/plugins/`; the root the V2
 docs name, `<config>/plugins/` (`~/.config/opencode/plugins/`), is honored as
 well. Set `CROSSTALK_PLUGINS_DIR` to target another directory.
 
+The package is also published to npm as
+[`opencode-crosstalk`](https://www.npmjs.com/package/opencode-crosstalk); release
+tags track that version. The symlink install above stays the recommended path
+for a checkout you edit, because your edits are live after a reload.
+
 ### One specific project
 
 Point a project at it:
@@ -415,7 +420,7 @@ and splits tools on `options.codemode === false` (direct) versus everything else
 
 ```sh
 npm install
-npm run check     # the gate: typecheck + 279 unit tests, both always run
+npm run check     # the gate: typecheck + 280 unit tests, both always run
 npm run test:e2e  # live smoke test, needs OPENCODE_E2E=1 and a usable model
 npm run setup     # link the plugin in globally
 ```
@@ -438,6 +443,26 @@ claim table take an injected clock and are tested directly. `src/index.ts`
 host; `src/rpc.ts` is the shared contract and imports only types. `scripts/setup.mjs`
 and `scripts/check.mjs` are plain JavaScript sitting outside `tsconfig.json`,
 so neither is part of the typecheck.
+
+### Releasing
+
+Release publishing is staged by CI and approved by a human, so no terminal ever
+asks for a one-time password:
+
+```sh
+npm version minor        # bumps package.json + package-lock.json
+git push --follow-tags   # the tag triggers .github/workflows/publish.yml
+```
+
+The workflow installs, runs `npm run check`, verifies that the tag matches
+`package.json`, and stages the tarball with `npm stage publish --provenance`.
+Approve the staged version in the npm web UI (2FA in the browser), or with
+`npm stage list` / `npm stage approve <stage-id>` where an OTP works. Staging
+never needs 2FA; approving always does.
+
+The workflow needs an `NPM_TOKEN` repository secret — a granular token with
+read/write package access, no bypass required (`gh secret set NPM_TOKEN`).
+`workflow_dispatch` stages whatever version is in `package.json`, without a tag.
 
 ## Skills
 

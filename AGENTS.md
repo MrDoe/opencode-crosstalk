@@ -26,8 +26,9 @@ npm run test:e2e    # spawns a real opencode + real model calls; see below
 - Node **>= 22.18** is required (`engines`): the test script and the host both
   execute `.ts` via type stripping. Don't add a transpile step.
 - There is **no lint or formatter config** (no eslint/biome/prettier, no
-  pre-commit, no CI). `npm run check` is the only automated gate — match the
-  surrounding style by hand.
+  pre-commit). `npm run check` is the only automated gate — match the
+  surrounding style by hand; the only CI is the tag-triggered publish workflow
+  in `.github/workflows/publish.yml`.
 - The repo is under version control at `git@github.com:MrDoe/opencode-crosstalk.git`
   (branch `main`). Keep `npm run check` green before pushing.
 

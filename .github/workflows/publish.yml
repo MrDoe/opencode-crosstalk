@@ -1,0 +1,70 @@
+name: publish
+
+# Tag-driven releases. Staging defers the 2FA prompt to a browser, where it
+# works; approving always needs proof-of-presence, staging never does.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # provenance
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      # Node 22 ships npm 10; staged publishing lives in npm 12.
+      - name: Upgrade npm
+        run: npm install -g npm@12
+
+      - name: Install
+        run: npm ci
+
+      - name: Check
+        run: npm run check
+
+      - name: Verify tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "${GITHUB_REF_NAME}" = "v${version}" || {
+            echo "tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          }
+
+      - name: Stage the release
+        run: npm stage publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: List staged versions
+        if: always()
+        run: npm stage list
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Where to approve
+        if: success()
+        run: |
+          {
+            echo "### Release staged"
+            echo ""
+            echo "Approve it in the npm web UI with browser 2FA:"
+            echo "https://www.npmjs.com/package/opencode-crosstalk"
+            echo ""
+            echo "Or locally: \`npm stage list\` then \`npm stage approve <stage-id>\`."
+          } >> "$GITHUB_STEP_SUMMARY"
