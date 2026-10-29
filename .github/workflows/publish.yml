@@ -1,7 +1,8 @@
 name: publish
 
-# Tag-driven releases. Staging defers the 2FA prompt to a browser, where it
-# works; approving always needs proof-of-presence, staging never does.
+# Tag-driven releases. The job stages the tarball; approving it is the 2FA
+# step, done in the npm web UI where 2FA works. Authentication is OIDC trusted
+# publishing - no NPM_TOKEN, no expiry, nothing to rotate.
 on:
   push:
     tags: ["v*"]
@@ -9,7 +10,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # provenance
+  id-token: write # OIDC + provenance
 
 concurrency:
   group: npm-publish
@@ -27,7 +28,7 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
 
-      # Node 22 ships npm 10; staged publishing lives in npm 12.
+      # Node 22 ships npm 10; `npm stage` and OIDC trusted publishing need 12.
       - name: Upgrade npm
         run: npm install -g npm@12
 
@@ -47,15 +48,7 @@ jobs:
           }
 
       - name: Stage the release
-        run: npm stage publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: List staged versions
-        if: always()
-        run: npm stage list
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm stage publish --access public
 
       - name: Where to approve
         if: success()
@@ -66,5 +59,6 @@ jobs:
             echo "Approve it in the npm web UI with browser 2FA:"
             echo "https://www.npmjs.com/package/opencode-crosstalk"
             echo ""
-            echo "Or locally: \`npm stage list\` then \`npm stage approve <stage-id>\`."
+            echo "Staged versions cannot be listed or approved with an OIDC token - approval is"
+            echo "proof-of-presence and always needs the browser or a CLI OTP."
           } >> "$GITHUB_STEP_SUMMARY"

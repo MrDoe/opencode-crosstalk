@@ -446,23 +446,29 @@ so neither is part of the typecheck.
 
 ### Releasing
 
-Release publishing is staged by CI and approved by a human, so no terminal ever
-asks for a one-time password:
+Release publishing is staged by CI and approved by a human, using npm
+**trusted publishing** — no long-lived token, and no terminal 2FA prompt:
 
 ```sh
 npm version minor        # bumps package.json + package-lock.json
 git push --follow-tags   # the tag triggers .github/workflows/publish.yml
 ```
 
-The workflow installs, runs `npm run check`, verifies that the tag matches
-`package.json`, and stages the tarball with `npm stage publish --provenance`.
-Approve the staged version in the npm web UI (2FA in the browser), or with
-`npm stage list` / `npm stage approve <stage-id>` where an OTP works. Staging
-never needs 2FA; approving always does.
+The workflow installs npm 12, runs `npm run check`, verifies that the tag
+matches `package.json`, and runs `npm stage publish` with an OIDC token.
+Approve the staged version in the npm web UI (2FA in the browser). Staging never
+needs 2FA; approving always does.
 
-The workflow needs an `NPM_TOKEN` repository secret — a granular token with
-read/write package access, no bypass required (`gh secret set NPM_TOKEN`).
+One-time setup on [npmjs.com](https://www.npmjs.com/package/opencode-crosstalk):
+package **Settings → Trusted publishing → GitHub Actions**, with
+`MrDoe` / `opencode-crosstalk` / `publish.yml`. Staged publishing is always
+allowed for a trusted publisher; direct `npm publish` is a separate opt-in.
+A new trusted publisher must complete its first publish within **2 days** or the
+configuration expires.
+
 `workflow_dispatch` stages whatever version is in `package.json`, without a tag.
+`npm stage list` and `npm stage approve` require interactive authentication, so
+they cannot run from the workflow — use them locally only where an OTP works.
 
 ## Skills
 
