@@ -26,3 +26,11 @@ verify the tag against `package.json`, and stage with
 `npm stage publish --provenance`; approval happens in the npm web UI with
 browser 2FA. The workflow upgrades npm to 12 first (Node 22 ships npm 10, which
 has no `stage`). `NPM_TOKEN` repository secret still has to be created.
+
+## [2026-10-29] release | trusted publishing replaces the 7-day token
+Deleted the `NPM_TOKEN` secret. `.github/workflows/publish.yml` now authenticates
+with GitHub OIDC (`id-token: write`) and runs `npm stage publish --access public`
+with no token at all. One-time setup on npmjs.com: package Settings → Trusted
+publishing → GitHub Actions, `MrDoe` / `opencode-crosstalk` / `publish.yml`;
+the config must complete its first publish within 2 days. `npm stage list` and
+`npm stage approve` cannot use OIDC, so approval stays in the browser.
