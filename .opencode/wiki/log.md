@@ -11,3 +11,9 @@ first session in a project never learned the channel existed and never declared
 a name or role. It now always pushes a briefing: a compact declaration nudge
 while alone, the full coordination text once a peer or lease exists. Tests
 updated (`test/setup.test.ts`), README and AGENTS.md brought in line.
+
+## [2026-10-29] release | v0.2.0
+Bumped `package.json`/`package-lock.json` to 0.2.0, committed the always-on
+briefing, tagged `v0.2.0`, pushed `main` + tag, and created the GitHub release.
+npm publish is pending credentials (`npm whoami` → ENEEDAUTH); the tarball
+dry-run is clean.
