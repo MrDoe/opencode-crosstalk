@@ -39,7 +39,7 @@ npm run test:e2e    # spawns a real opencode + real model calls; see below
 | `index.ts` | Host directory entrypoint — re-exports `src/index.ts`. Required: the host resolves plugin directories by a root `index.ts`/`index.js` and ignores `package.json` `main`/`exports`; a directory without one is dropped silently. |
 | `src/index.ts` | **The server-side** runtime importer of `@opencode/plugin` (`Plugin.define`). Wires mesh + event pump + tools + briefing hook + the crosstalk RPC, and returns the cleanup that undoes all of it. |
 | `src/core/` | Host-free coordination logic. `mesh.ts` is the façade over `Registry` (presence), `Mailbox`, `ClaimTable`; `avatar.ts` is the pure portrait selection the mesh freezes per session; also the package's `./core` export. |
-| `src/tools/` | The seven `crosstalk_*` tool definitions. `args.ts` is the input validator, `types.ts` the shared plumbing. |
+| `src/tools/` | The nine `crosstalk_*` tool definitions. `args.ts` is the input validator, `types.ts` the shared plumbing. |
 | `src/rpc.ts` | The RPC contract shared by the server and CLI plugins — a plain object with a type-only import, so neither process needs a runtime plugin module for it. |
 | `tui.ts` | Host entrypoint for the CLI (TUI) plugin — re-exports `src/tui/index.tsx`. The host discovers a TUI entrypoint beside the server entry (`tui.ts` next to `index.ts`). |
 | `src/tui/` | CLI plugin. `index.tsx` renders the sidebar avatar; `avatar.ts` maps the frozen portrait to its emoticon and title prefix. |
@@ -57,8 +57,8 @@ touch the package. Keep the host behind `EventStream`, `StorageLike`,
 
 ## Tool calling
 
-Six tools come from `toolFactories` in `src/tools/index.ts`. Each definition's
-`name` is **bare** (`status`, `peers`, `send`, `inbox`, `claim`, `wait`); the
+Nine tools come from `toolFactories` in `src/tools/index.ts`. Each definition's
+`name` is **bare** (`status`, `peers`, `send`, `reply`, `continue`, `inbox`, `claim`, `heartbeat`, `wait`); the
 host composes the effective id as `<namespace>_<name>`, and that composed id is
 what a model calls and what `editor.update` / `editor.remove` take.
 `parseOptions` rejects dots in `namespace` outright, so the host's dot→`_` rewrite
@@ -122,7 +122,7 @@ never fires.
   and write a final snapshot. Tests assert on the disposal counts and that
   post-cleanup events are ignored.
 - **Registration order in `toolFactories` is asserted verbatim**
-  (`status, peers, send, inbox, claim, wait`) by `test/setup.test.ts`, so
+  (`status, peers, send, reply, continue, inbox, claim, heartbeat, wait`) by `test/setup.test.ts`, so
   reordering or renaming a tool breaks a test on purpose.
 - **Branded host ids are narrowed at the boundary.** The host brands
   `Session.ID` and friends; the mesh works in plain strings. The `as never`
@@ -236,7 +236,7 @@ never fires.
   opens with `{ "action": "*", "resource": "*", "effect": "allow" }`, so the
   `crosstalk` action already resolves to allow. The rule from the README exists to
   *control* the action: one `{ "action": "crosstalk", "resource": "*", ... }` rule
-  covers all seven tools (or seven, if the `permission` option is changed so the action
+  covers all nine tools (or nine, if the `permission` option is changed so the action
   falls back to each effective tool name). A rule that *blocks* the action keeps the
   tools out of the catalog entirely, so the model never sees them; `ask` prompts.
 - Plugin id is `opencode.crosstalk`; disable with `plugins: ["-opencode.crosstalk"]`.
@@ -283,8 +283,8 @@ never fires.
 
 Other OpenCode sessions in this workspace are reachable through the
 `opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
-`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_heartbeat`,
-`crosstalk_wait`.
+`crosstalk_send`, `crosstalk_reply`, `crosstalk_continue`, `crosstalk_inbox`,
+`crosstalk_claim`, `crosstalk_heartbeat`, `crosstalk_wait`.
 Write in **English only** and keep everything token-tight: one short sentence
 per status, message, or claim note (who, what, where) — no reports, no
 summaries, no pleasantries. Keep working; only stop for coordination that
@@ -302,6 +302,9 @@ prevents a real collision.
   peer holds, `crosstalk_send` one short precise sentence (`to: "George"` or a
   session id) and continue elsewhere; replies are injected into live turns (use
   `crosstalk_inbox` to catch up). Never force a claim.
+- **Answer by message id, continue by session id.** `crosstalk_reply { messageId, text }`
+  addresses the real sender; `crosstalk_continue { sessionID, prompt }` reuses a
+  peer's context. Send `kind: "decline"` with a reason when work is outside your lane.
 - **Lease what you are editing now.** `crosstalk_claim` takes an exclusive
   expiring lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`);
   keep the note to a few words. `renew` if the work runs long, `release` when

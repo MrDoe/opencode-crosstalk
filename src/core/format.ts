@@ -91,6 +91,14 @@ function notAddressable(peer: PeerView, scope: Scope): string {
  * without spelunking logs.
  */
 export interface SelfCheck {
+  /** Communication wall in effect for this process. */
+  scope: Scope
+  /** Permission action that gates the whole tool namespace. */
+  permission: string
+  /** Whether the tools are exposed through Code Mode instead of directly. */
+  codemode: boolean
+  /** Messages whose injection is still pending for this session. */
+  pending?: number
   /** Snapshot format this build writes and restores, e.g. `v2`. */
   snapshot: string
   /** Mesh storage key; only meaningful when `persist` is true. */
@@ -136,7 +144,13 @@ export function formatStatus(input: StatusViewInput): string {
 
   if (input.selfCheck) {
     const check = input.selfCheck
-    const parts = [`snapshot ${check.snapshot}`]
+    const parts = [
+      `snapshot ${check.snapshot}`,
+      `scope ${check.scope}`,
+      `action ${check.permission}`,
+      check.codemode ? "code mode" : "direct",
+    ]
+    if (check.pending !== undefined && check.pending > 0) parts.push(`${check.pending} pending injection`)
     if (check.persist && check.storageKey !== undefined) parts.push(`storage ${check.storageKey}`)
     if (!check.persist) parts.push("persistence off")
     if (check.locations !== undefined) parts.push(`${check.locations} location${check.locations === 1 ? "" : "s"} owned`)
@@ -253,6 +267,16 @@ export function formatInbox(input: InboxViewInput): string {
     for (const line of message.text.split("\n")) lines.push(`      ${line}`)
     if (message.kind === "request") {
       lines.push(`      ↳ answer with crosstalk_send to ${message.fromName ?? message.from}`)
+    } else if (message.kind === "decline") {
+      lines.push("      ↳ declined — no answer needed; reroute instead")
+    }
+    const task = (message.meta as { task?: Record<string, unknown> } | undefined)?.task
+    if (task) {
+      const parts: string[] = []
+      if (Array.isArray(task.writeScope) && task.writeScope.length > 0) parts.push(`files ${task.writeScope.join(", ")}`)
+      if (typeof task.validation === "string") parts.push(`gate ${task.validation}`)
+      if (typeof task.evidence === "string") parts.push(`evidence ${task.evidence}`)
+      if (parts.length > 0) lines.push(`      brief: ${parts.join("; ")}`)
     }
   }
   if (input.limit !== undefined && messages.length >= input.limit) {
@@ -284,7 +308,10 @@ export function formatSend(input: SendViewInput): string {
         : `  · ${recipient.sessionID} — queued only${recipient.reason ? `: ${recipient.reason}` : ""}`,
     )
   }
-  for (const skip of input.skipped) lines.push(`  - ${skip.target}: ${skip.reason}`)
+  for (const skip of input.skipped) {
+    const hint = skip.reason.startsWith("outside the") ? " — ask the user or a shared-scope peer to relay" : ""
+    lines.push(`  - ${skip.target}: ${skip.reason}${hint}`)
+  }
   if (input.skipped.length === 0 && input.recipients.length === 0) {
     lines.push("  no matching peers — check crosstalk_peers, or send with all: true")
   }

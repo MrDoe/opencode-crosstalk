@@ -116,7 +116,7 @@ async function emit(fake: FakeContext, event: CrosstalkEvent): Promise<void> {
   await fake.events.settle()
 }
 
-test("setup registers the namespace, seven tools, and the briefing hook", async () => {
+test("setup registers the namespace, nine tools, and the briefing hook", async () => {
   const fake = await setup()
 
   assert.equal(pluginId, "opencode.crosstalk")
@@ -125,6 +125,8 @@ test("setup registers the namespace, seven tools, and the briefing hook", async 
     "crosstalk_status",
     "crosstalk_peers",
     "crosstalk_send",
+    "crosstalk_reply",
+    "crosstalk_continue",
     "crosstalk_inbox",
     "crosstalk_claim",
     "crosstalk_heartbeat",
@@ -366,7 +368,7 @@ test("a v1 snapshot on disk migrates: declarations survive, leases do not", asyn
 
 test("cleanup disposes the tools and the hook, and stops consuming events", async () => {
   const fake = await setup()
-  assert.equal(fake.editor.added.length, 7)
+  assert.equal(fake.editor.added.length, 9)
 
   await fake.cleanup()
 
@@ -464,7 +466,7 @@ test("a storage write failure does not break setup or cleanup", async () => {
     throw new Error("disk full")
   }
   const cleanup = requireCleanup(await plugin.setup(fake.ctx as never))
-  assert.equal(fake.editor.added.length, 7)
+  assert.equal(fake.editor.added.length, 9)
   await assert.doesNotReject(() => cleanup())
 })
 
@@ -472,7 +474,7 @@ test("an unusable stored snapshot is ignored instead of failing setup", async ()
   for (const bad of [42, "nope", { version: 99, peers: [], claims: [], savedAt: 1 }]) {
     const fake = fakeContext(undefined, { "crosstalk/proj-1": bad })
     const cleanup = requireCleanup(await plugin.setup(fake.ctx as never))
-    assert.equal(fake.editor.added.length, 7, `snapshot ${JSON.stringify(bad)} must be ignored, not fatal`)
+    assert.equal(fake.editor.added.length, 9, `snapshot ${JSON.stringify(bad)} must be ignored, not fatal`)
     await cleanup()
   }
 })
@@ -495,13 +497,13 @@ test("a second instance for the same location stays inert", async () => {
     assert.match(warnings.join("\n"), /by file:\/\/\//, "the duplicate names the owning install")
 
     await second.cleanup()
-    assert.equal(first.editor.added.length, 7, "the inert twin left the owner alone")
+    assert.equal(first.editor.added.length, 9, "the inert twin left the owner alone")
   } finally {
     console.warn = warn
   }
   await first.cleanup()
 
   const next = await setup()
-  assert.equal(next.editor.added.length, 7, "the owner's cleanup frees the location")
+  assert.equal(next.editor.added.length, 9, "the owner's cleanup frees the location")
   await next.cleanup()
 })

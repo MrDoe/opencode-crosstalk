@@ -12,8 +12,8 @@ import { Plugin, usePlugin } from "@opencode/plugin/tui"
 import { Show, createMemo, createSignal } from "solid-js"
 import { TextAttributes } from "@opentui/core"
 import type { DirectoryEntry, DirectoryPayload } from "../core/directory.ts"
-import { normalizeResource } from "../core/claims.ts"
 import { CrosstalkRpc } from "../rpc.ts"
+import { focusPeer, inPlace } from "./focus.ts"
 import { emoticonFor, entryForPortrait, isSummaryStale, summaryText, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
 
 const manifestUrl = new URL("../../assets/avatars/manifest.json", import.meta.url)
@@ -54,22 +54,12 @@ function asPayload(value: unknown): DirectoryPayload {
   return { sessions: Array.isArray(sessions) ? (sessions as DirectoryEntry[]) : [] }
 }
 
-/**
- * Whether a session sits in this TUI's directory or below it, compared with the
- * same normalisation claims use so a Windows worktree does not look like a
- * different place because of a separator or a letter case.
- */
-function inPlace(candidate: string | undefined, home: string): boolean {
-  if (candidate === undefined) return false
-  const base = normalizeResource(home)
-  const other = normalizeResource(candidate)
-  return other === base || other.startsWith(`${base}/`)
-}
-
 function AvatarLine(props: {
   sessionID: string
   directory: () => DirectoryPayload
   entries: readonly AvatarEntry[]
+  /** This TUI's location; only peers inside it may be focused. */
+  home: string | undefined
   /** Starts a fresh staleness evaluation; see `SUMMARY_TICK_MS`. */
   tick: () => number
 }) {
@@ -100,7 +90,14 @@ function AvatarLine(props: {
   return (
     <Show when={picked()}>
       {() => (
-        <box flexDirection="column" alignItems="center" gap={0}>
+        <box
+          flexDirection="column"
+          alignItems="center"
+          gap={0}
+          onMouseDown={() => {
+            focusPeer(context.ui.tabs, props.sessionID, props.home, session())
+          }}
+        >
           {/*
             Blocks on purpose: the sidebar sits in a scrollbox and the terminal
             we target (VS Code) announces sixel but does not paint it, so cell
@@ -203,7 +200,13 @@ export default Plugin.define({
     const unregister = context.ui.slot({
       append: "sidebar.content",
       render: (input) => (
-        <AvatarLine sessionID={input.sessionID} directory={directory} entries={entries} tick={tick} />
+        <AvatarLine
+          sessionID={input.sessionID}
+          directory={directory}
+          entries={entries}
+          home={location?.directory}
+          tick={tick}
+        />
       ),
     })
 

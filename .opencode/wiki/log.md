@@ -1,5 +1,7 @@
 # Wiki log
 
+## [2026-11-24] ingest | OMO-Slim extension landing — nine tools, briefs, roles
+
 ## [2026-10-29] seed | runtime, install, and coordination wall
 Read `src/index.ts`, `src/core/mesh.ts`, `src/config.ts`, `scripts/setup.mjs`, the
 README, and the test harness. Seeded the entity pages for the plugin entrypoint

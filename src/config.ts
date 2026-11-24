@@ -40,6 +40,8 @@ export interface CrosstalkOptions {
   storageKey: string
   /** Append a short briefing to the agent's system prompt. */
   announce: boolean
+  /** Warn then block repeated identical coordination calls (opt-in). */
+  loopGuard: boolean
 }
 
 export const DEFAULTS: CrosstalkOptions = {
@@ -58,6 +60,7 @@ export const DEFAULTS: CrosstalkOptions = {
   persist: true,
   storageKey: "crosstalk",
   announce: true,
+  loopGuard: false,
 }
 
 const SCOPES: readonly Scope[] = ["project", "location", "server"]
@@ -171,6 +174,7 @@ export function parseOptions(raw: unknown): ParsedOptions {
       persist: booleanOption(input, "persist", DEFAULTS.persist, warnings),
       storageKey: stringOption(input, "storageKey", DEFAULTS.storageKey, /^[A-Za-z0-9_./-]+$/, warnings),
       announce: booleanOption(input, "announce", DEFAULTS.announce, warnings),
+      loopGuard: booleanOption(input, "loopGuard", DEFAULTS.loopGuard, warnings),
     },
   }
 }

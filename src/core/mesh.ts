@@ -61,6 +61,12 @@ export interface SendInput {
   delivery?: Delivery
   /** Set when the caller is answering another message. */
   replyTo?: string
+  /** Exact files the task may edit; carried into `meta.task` for the recipient. */
+  writeScope?: string[]
+  /** Command that decides whether the task landed green. */
+  validation?: string
+  /** What the reporter must show to prove completion. */
+  evidence?: string
 }
 
 export interface SendOutcome {
@@ -358,6 +364,13 @@ export class Mesh {
     const meta: Record<string, unknown> = {}
     if (input.replyTo) meta.replyTo = input.replyTo
     meta.requested = sender.declared?.role
+    if (input.writeScope || input.validation || input.evidence) {
+      meta.task = {
+        ...(input.writeScope && input.writeScope.length > 0 ? { writeScope: input.writeScope } : {}),
+        ...(input.validation ? { validation: input.validation } : {}),
+        ...(input.evidence ? { evidence: input.evidence } : {}),
+      }
+    }
 
     const messages = this.mailbox.send({
       from: selfID,
@@ -578,6 +591,12 @@ export class Mesh {
       unread: this.mailbox.unreadCount(selfID),
       unreadBefore,
     }
+  }
+
+  /** Resolve a message by id for reply-by-id; only the recipient's own mail counts. */
+  findMessage(selfID: string, id: string): CrosstalkMessage | undefined {
+    this.ensureSelf(selfID)
+    return this.mailbox.find(selfID, id)
   }
 
   /** Lease bookkeeping for the caller's session. */

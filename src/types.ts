@@ -86,7 +86,7 @@ export interface PeerView extends Peer {
   addressable: boolean
 }
 
-export type MessageKind = "message" | "status" | "request" | "answer" | "system"
+export type MessageKind = "message" | "status" | "request" | "answer" | "decline" | "system"
 
 export type Delivery = "steer" | "queue"
 

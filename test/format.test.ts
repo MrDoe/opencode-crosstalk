@@ -104,11 +104,19 @@ test("formatStatus renders the self-check line when given one", () => {
     peers: [],
     scope: "project",
     now: NOW,
-    selfCheck: { snapshot: "v2", storageKey: "crosstalk/proj-1", persist: true, locations: 2 },
+    selfCheck: {
+      snapshot: "v2",
+      scope: "project",
+      permission: "crosstalk",
+      codemode: false,
+      storageKey: "crosstalk/proj-1",
+      persist: true,
+      locations: 2,
+    },
   })
   assert.match(
     output,
-    /^ {2}self-check: snapshot v2 · storage crosstalk\/proj-1 · 2 locations owned$/m,
+    /^ {2}self-check: snapshot v2 · scope project · action crosstalk · direct · storage crosstalk\/proj-1 · 2 locations owned$/m,
     "one diagnostic line after the own record",
   )
 })
@@ -119,9 +127,13 @@ test("formatStatus self-check degrades without persistence or guard data", () =>
     peers: [],
     scope: "project",
     now: NOW,
-    selfCheck: { snapshot: "v2", persist: false },
+    selfCheck: { snapshot: "v2", scope: "project", permission: "crosstalk", codemode: false, persist: false },
   })
-  assert.match(output, /self-check: snapshot v2 · persistence off/, "the storage key is meaningless when off")
+  assert.match(
+    output,
+    /self-check: snapshot v2 · scope project · action crosstalk · direct · persistence off/,
+    "the storage key is meaningless when off",
+  )
   assert.doesNotMatch(output, /locations/, "no guard data: the count is omitted, not guessed")
 })
 
@@ -131,11 +143,20 @@ test("formatStatus flags guard-refused loads in the self-check", () => {
     peers: [],
     scope: "project",
     now: NOW,
-    selfCheck: { snapshot: "v2", storageKey: "crosstalk/p", persist: true, locations: 1, refused: 2 },
+    selfCheck: {
+      snapshot: "v2",
+      scope: "project",
+      permission: "crosstalk",
+      codemode: false,
+      storageKey: "crosstalk/p",
+      persist: true,
+      locations: 1,
+      refused: 2,
+    },
   })
   assert.match(
     output,
-    /^ {2}self-check: snapshot v2 · storage crosstalk\/p · 1 location owned · 2 refused loads$/m,
+    /^ {2}self-check: snapshot v2 · scope project · action crosstalk · direct · storage crosstalk\/p · 1 location owned · 2 refused loads$/m,
     "the duplicate-install trace lands on the same line",
   )
 })
@@ -146,7 +167,16 @@ test("formatStatus keeps a zero refused count silent", () => {
     peers: [],
     scope: "project",
     now: NOW,
-    selfCheck: { snapshot: "v2", storageKey: "crosstalk/p", persist: true, locations: 1, refused: 0 },
+    selfCheck: {
+      snapshot: "v2",
+      scope: "project",
+      permission: "crosstalk",
+      codemode: false,
+      storageKey: "crosstalk/p",
+      persist: true,
+      locations: 1,
+      refused: 0,
+    },
   })
   assert.doesNotMatch(output, /refused/, "nothing was refused: nothing to alarm about")
 })

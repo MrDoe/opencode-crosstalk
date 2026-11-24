@@ -7,20 +7,22 @@ Two agents in the same repository cannot discover each other, cannot say "I'm in
 `src/auth/` right now", and — most expensively — cannot stop each other from
 writing the same file at the same time. Which means the second agent usually
 discovers the first one's work by reading a half-applied diff during the
-postmortem. This plugin adds seven tools that make all three ordinary.
+postmortem. This plugin adds nine tools that make all three ordinary.
 
 ```
-crosstalk_status   declare your role and see who else is here
-crosstalk_peers    who is running, what they declared, what they hold
-crosstalk_send     message a peer, a role, or everyone
-crosstalk_inbox    read replies, optionally blocking until one arrives
-crosstalk_claim    take an exclusive, expiring lease on a file
-crosstalk_wait     block until a peer is idle or a file is released
+crosstalk_status    declare your role and see who else is here
+crosstalk_peers     who is running, what they declared, what they hold
+crosstalk_send      message a peer, a role, or everyone; attach a task brief
+crosstalk_reply     answer a message by its id, addressed to its actual sender
+crosstalk_continue  steer an existing session by exact id, preserving context
+crosstalk_inbox     read replies, optionally blocking until one arrives
+crosstalk_claim     take an exclusive, expiring lease on a file
+crosstalk_wait      block until a peer is idle or a file is released
 crosstalk_heartbeat send a message to a peer on a repeating interval
 ```
 
-All seven share one namespace and one permission action (`crosstalk`), so a
-project can allow or deny coordination with a single rule instead of seven.
+All nine share one namespace and one permission action (`crosstalk`), so a
+project can allow or deny coordination with a single rule instead of nine.
 
 ## In action
 
@@ -101,7 +103,7 @@ your-project/.opencode/plugins/crosstalk/   →  symlink or copy this package he
 
 No permission rule is needed to *use* the tools: OpenCode's base policy allows
 every action, so `crosstalk` already resolves to allow. Add a rule when you want
-to control the plugin rather than enable it — one rule covers all seven tools:
+to control the plugin rather than enable it — one rule covers all nine tools:
 
 ```jsonc title="opencode.jsonc"
 {
@@ -252,6 +254,22 @@ payload — it is confidently and loudly wrong. On a kitty-graphics terminal,
 switching `protocol` in `src/tui/index.tsx` from `blocks` to `auto` gives crisp
 pixels.
 
+### Task briefs and replies
+
+An assignment is one message with an optional evidence contract: `writeScope`
+(exact files one owner may edit), `validation` (the gate command) and `evidence`
+(what must be shown to prove completion). They ride in the message's `meta.task`
+and appear in the recipient's `crosstalk_inbox` as a `brief:` line. A session
+that cannot take the work replies with `kind: "decline"` — no answer is demanded
+and the coordinator reroutes instead of resending it unchanged.
+
+Use `crosstalk_reply { messageId, text }` to answer a specific message: the
+recipient is read from that message, not chosen by the caller, and the thread
+topic is inherited. Use `crosstalk_continue { sessionID, prompt }` to reuse an
+existing session's context instead of starting a new lane. With `loopGuard`
+enabled, the third byte-identical `send`/`reply` warns and the sixth is blocked;
+`inbox`, leases, status and waits are never blocked.
+
 ### Drop-in AGENTS.md snippet
 
 Copy this block into a project's `AGENTS.md` to teach its sessions how to
@@ -265,8 +283,8 @@ archaeological dig.
 
 Other OpenCode sessions in this workspace are reachable through the
 `opencode-crosstalk` plugin: `crosstalk_status`, `crosstalk_peers`,
-`crosstalk_send`, `crosstalk_inbox`, `crosstalk_claim`, `crosstalk_heartbeat`,
-`crosstalk_wait`.
+`crosstalk_send`, `crosstalk_reply`, `crosstalk_continue`, `crosstalk_inbox`,
+`crosstalk_claim`, `crosstalk_heartbeat`, `crosstalk_wait`.
 Write in **English only** and keep everything token-tight: one short sentence
 per status, message, or claim note (who, what, where) — no reports, no
 summaries, no pleasantries. Keep working; only stop for coordination that
@@ -284,6 +302,9 @@ prevents a real collision.
   peer holds, `crosstalk_send` one short precise sentence (`to: "George"` or a
   session id) and continue elsewhere; replies are injected into live turns (use
   `crosstalk_inbox` to catch up). Never force a claim.
+- **Answer by message id, continue by session id.** `crosstalk_reply { messageId, text }`
+  addresses the real sender; `crosstalk_continue { sessionID, prompt }` reuses a
+  peer's context. Send `kind: "decline"` with a reason when work is outside your lane.
 - **Lease what you are editing now.** `crosstalk_claim` takes an exclusive
   expiring lease on exact paths — no globs (`resources`, `note`, `ttlSeconds`);
   keep the note to a few words. `renew` if the work runs long, `release` when
@@ -377,7 +398,7 @@ All optional; set them with the object form of `plugins`:
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `namespace` | `crosstalk` | Tool namespace. Dots are rejected: the host rewrites them to `_`. |
-| `permission` | `crosstalk` | Permission action for all seven tools. |
+| `permission` | `crosstalk` | Permission action for all nine tools. |
 | `codemode` | `false` | Expose the tools through Code Mode instead of directly. |
 | `scope` | `project` | Peer visibility: `project`, `location`, or `server`. |
 | `staleAfterMs` | `600000` | Silence after which a peer is flagged stale. |
@@ -391,6 +412,7 @@ All optional; set them with the object form of `plugins`:
 | `persist` | `true` | Persist peers and leases through `ctx.storage`. |
 | `storageKey` | `crosstalk` | Storage key prefix. |
 | `announce` | `true` | Brief every session in the system prompt; compact while the session is alone. |
+| `loopGuard` | `false` | Warn on the 3rd and block the 6th byte-identical `send`/`reply` call; other tools never blocked. |
 
 Bad values degrade to the default with a warning; a typo never costs an agent
 its tools mid-session. `parseOptions` never throws — a missing bracket is a log
@@ -404,9 +426,9 @@ Both were confirmed against the host's own tool snapshot, which reads roughly
 and splits tools on `options.codemode === false` (direct) versus everything else
 (Code Mode catalog). So:
 
-- `permission: "crosstalk"` makes the action that gates all seven tools. Without
+- `permission: "crosstalk"` makes the action that gates all nine tools. Without
   it, the action would fall back to the effective tool name — `crosstalk_status`,
-  `crosstalk_claim`, and so on — needing seven rules instead of one.
+  `crosstalk_claim`, and so on — needing nine rules instead of one.
 - `codemode: false` is what makes the tools directly callable. Setting it to
   `true` moves them into the Code Mode catalog only, where they are reached
   through `execute` rather than called by name. That adds a second gate: the
@@ -472,20 +494,46 @@ they cannot run from the workflow — use them locally only where an OTP works.
 
 ## Skills
 
-`.opencode/skills/` carries four project skills OpenCode advertises to every
+`.opencode/skills/` carries the project skills OpenCode advertises to every
 session here; load one with the `skill` tool when it fits:
 
 | Skill | Use it for |
 | --- | --- |
 | `crosstalk-coordination` | running several sessions — assigning phases, relaying findings, push waves |
 | `crosstalk-team-workflow` | executing an assignment — leases, a green gate, honest landing reports |
+| `crosstalk-doctor` | diagnosing tool visibility, scope and a refused twin install from `crosstalk_status` |
+| `crosstalk-tester` | focused verification without editing source; findings with file:line |
+| `crosstalk-reviewer` | reading landed commits before the next phase opens; never edits |
+| `crosstalk-scout` | read-only reconnaissance; returns findings, takes no leases |
+| `crosstalk-integrator` | the one owner of shared files (`README.md`, `AGENTS.md`, config) |
 | `test-driven-development` | any new code: failing test first, watch it fail, then minimal code |
 | `requesting-code-review` | dispatching a reviewer on a commit range before merging |
 
-The first two are written for this repository. The last two are vendored from
-[obra/superpowers](https://github.com/obra/superpowers) under MIT; each file
-carries its attribution footer and any edits made while vendoring.
-`.opencode/skills/README.md` is the index.
+The `crosstalk-*` skills are written for this repository. The last two are
+vendored from [obra/superpowers](https://github.com/obra/superpowers) under MIT;
+each file carries its attribution footer and any edits made while vendoring.
+`.opencode/skills/roles.md` is the roster with the canonical lowercase role
+labels used by `crosstalk_send { role: "tester" }`; `.opencode/skills/brief-format.md`
+is the shared assignment card. `.opencode/skills/README.md` is the index.
+
+## Release notes
+
+### 0.3.0
+
+- **Two new tools:** `crosstalk_reply` (answer a message by id, addressed to its
+  real sender) and `crosstalk_continue` (reuse a session by exact id).
+- **Task briefs:** `send` carries `writeScope`, `validation` and `evidence`;
+  recipients see them as a `brief:` line in their inbox. `kind: "decline"` asks
+  for no answer.
+- **Self-check:** `crosstalk_status` reports scope, permission action,
+  direct/Code Mode and pending injections; a `crosstalk-doctor` skill explains
+  how to read it.
+- **Optional `loopGuard`** warns on repeated identical sends and blocks the
+  sixth (default off); retrieval tools are never blocked.
+- **Click-to-focus:** named peers in this TUI's place can be focused from the
+  sidebar avatar.
+- **Role kit:** `roles.md`, `brief-format.md` and skills for tester, reviewer,
+  scout, integrator and doctor.
 
 ## License
 
