@@ -54,13 +54,24 @@ The first tag run failed at `npm stage publish` with E401 "authentication token
 seems to be invalid". The tarball, check and tag verification all passed; the
 cause was `actions/setup-node@v4`, which writes a dummy `NODE_AUTH_TOKEN` into
 `.npmrc` when no token is configured — npm sent that dummy token instead of
-using OIDC. Upgrading to `actions/checkout@v7` / `actions/setup-node@v7`, Node 24,
-`package-manager-cache: false` and no `cache: npm` was not enough: the v7 run
-still failed E401 because `registry-url` leaves an `_authToken` line in the
-generated `.npmrc`. The workflow now omits `registry-url` entirely (public
-installs need no auth) and stages with `--loglevel=verbose`. The tag is deleted
-and re-cut on each workflow fix; no 0.3.0 tarball was ever published or staged.
-Approval still happens in the npm web UI with browser 2FA.
+using OIDC. Two distinct failures had to be separated, which is why staging now runs with
+`--loglevel=verbose`:
+
+1. E401 "authentication token seems to be invalid" — `setup-node@v4` wrote a
+   dummy `NODE_AUTH_TOKEN` into `.npmrc`. Fixed with `actions/checkout@v7`,
+   `actions/setup-node@v7`, Node 24, `package-manager-cache: false`, no
+   `cache: npm`, and finally removing `registry-url` entirely (public installs
+   need no auth, and `registry-url` leaves an `_authToken` line even in v7).
+2. ENEEDAUTH with `POST/-/npm/v1/oidc/token/exchange/package/opencode-crosstalk`
+   → **404 "package not found"**. GitHub's OIDC token request succeeds (200,
+   audience `npm:registry.npmjs.org`); npm rejects the exchange. The trusted
+   publisher was configured 2026-10-29 but never used — 0.2.0 was published
+   with a short-lived token — and npm expires an unvalidated configuration
+   after 2 days. This one needs a human at npmjs.com: delete the expired
+   trusted publisher, add a new GitHub Actions one
+   (`MrDoe` / `opencode-crosstalk` / `publish.yml`, stage-publish allowed), then
+   re-run the tag workflow. Approval of the staged tarball still needs browser
+   2FA. No 0.3.0 tarball was published or staged.
 
 `opencode-crosstalk@0.2.0` was the first publish (2026-10-29), made directly
 with a short-lived 2FA-bypass token before trusted publishing was configured.
