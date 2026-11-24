@@ -2,7 +2,7 @@
 title: Releasing (staged publishing)
 tags: [concept, release, ci, npm]
 sourceRefs: [.github/workflows/publish.yml, package.json, README.md]
-lastReviewed: 2026-10-29
+lastReviewed: 2026-11-24
 ---
 
 # Releasing (staged publishing)
@@ -45,6 +45,11 @@ token, so they are not workflow steps.
   repository; no `--provenance` flag.
 
 ## History
+
+`opencode-crosstalk@0.3.0` added reply/continue, evidence briefs, the doctor
+self-check and the role skill kit. It was cut with `npm version minor` from
+`main` after the feature commit, then `git push --follow-tags`; the tag triggers
+the same staged publish. Approval still happens in the npm web UI.
 
 `opencode-crosstalk@0.2.0` was the first publish (2026-10-29), made directly
 with a short-lived 2FA-bypass token before trusted publishing was configured.
