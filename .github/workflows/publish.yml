@@ -22,15 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # setup-node < 7 wrote a dummy NODE_AUTH_TOKEN into .npmrc when no token
-      # was supplied, which sent an invalid token to the registry and turned
-      # OIDC trusted publishing into E401. v7 removes that fallback.
+      # No registry-url: setup-node would write an _authToken line into .npmrc
+      # even with no token, and npm then sends that empty/invalid token instead
+      # of doing the OIDC exchange (E401). Public installs need no auth.
       # No dependency cache in a release build: a poisoned cache can expose the
       # OIDC token to attacker-controlled install scripts.
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           package-manager-cache: false
 
       # Keep npm 12 for `npm stage`; Node 24 still ships npm 11.
@@ -53,7 +52,7 @@ jobs:
           }
 
       - name: Stage the release
-        run: npm stage publish --access public
+        run: npm stage publish --access public --loglevel=verbose
 
       - name: Where to approve
         if: success()
