@@ -48,8 +48,17 @@ token, so they are not workflow steps.
 
 `opencode-crosstalk@0.3.0` added reply/continue, evidence briefs, the doctor
 self-check and the role skill kit. It was cut with `npm version minor` from
-`main` after the feature commit, then `git push --follow-tags`; the tag triggers
-the same staged publish. Approval still happens in the npm web UI.
+`main` after the feature commit, then `git push --follow-tags`.
+
+The first tag run failed at `npm stage publish` with E401 "authentication token
+seems to be invalid". The tarball, check and tag verification all passed; the
+cause was `actions/setup-node@v4`, which writes a dummy `NODE_AUTH_TOKEN` into
+`.npmrc` when no token is configured — npm sent that dummy token instead of
+using OIDC. Fixed by moving to `actions/checkout@v7` / `actions/setup-node@v7`,
+Node 24, `package-manager-cache: false` and no `cache: npm` (npm's own trusted
+publishing recipe). The tag was deleted and re-cut on the workflow fix; no
+0.3.0 tarball was ever published or staged. Approval still happens in the npm
+web UI with browser 2FA.
 
 `opencode-crosstalk@0.2.0` was the first publish (2026-10-29), made directly
 with a short-lived 2FA-bypass token before trusted publishing was configured.
