@@ -119,12 +119,17 @@ sourcemap archaeology.
 
 ## Using it
 
-An agent that knows other sessions exist uses this on its own — the plugin
+An agent that knows other sessions exist uses this on its own - the plugin
 briefs every session in its system prompt. A session that is currently alone
 gets a compact declaration nudge, so it acquires a name and a role before a peer
 appears (an undeclared session is not addressable); as soon as one peer or one
-active lease exists, the full coordination briefing takes over. A typical
-exchange:
+active lease exists, the full coordination briefing takes over. Presence never
+waits on that nudge: until the model declares, the plugin auto-declares the
+session from its title (goal and summary mirror it, a portrait freezes, renames
+refresh it) - `autoDeclare: false` turns the fallback off, and a real
+`crosstalk_status` call replaces it at once. Note that a *bare*
+`crosstalk_status` call (no fields) declares nothing - it only reads, and says
+so. A typical exchange:
 
 ```text
 crosstalk_status { name: "Riley", role: "migrator", goal: "port auth off sessions",
@@ -150,6 +155,11 @@ crosstalk_wait { for: "peer_idle", sessionID: "ses_9f2", timeoutSeconds: 120 }
 → crosstalk wait: peer idle after 1.2s — ses_9f2
 ```
 
+Both tools infer their mode when only one reading makes sense:
+`crosstalk_claim` with `resources` and no `action` claims them (with neither it
+lists), and `crosstalk_wait` takes `for` from whichever of `sessionID` or
+`resource` you pass.
+
 A message is stored in the recipient's mailbox and, when the session is live,
 injected into its current turn — so the other agent finds out without anyone
 having to poll, remember to poll, or schedule a poll. The wait returned in 1.2
@@ -172,6 +182,11 @@ leases. The nickname is a label, never a licence.
 Sessions that declare themselves get a cartoon avatar in the OpenCode TUI
 sidebar, with their name, their role, and their live status summary below it —
 `🔧 CursorGuard` and `🔬 Wren` in the screenshots at the top.
+
+Since `autoDeclare` (default on), a session does not even have to declare to
+appear: the title fills the placeholder task and a portrait freezes, so the
+sidebar shows *something* for every live session from its first event; the
+model's own declaration replaces the placeholder as soon as it lands.
 
 The avatar is picked from a bundled pool of 92 characters (DiceBear *Personas*,
 CC BY 4.0 — see [`assets/avatars/ATTRIBUTION.md`](assets/avatars/ATTRIBUTION.md);
@@ -245,7 +260,12 @@ outlives several of the bugs it could have had.
 
 The server plugin exposes the session directory over RPC (a `directory` method
 plus a debounced `changed` event); the CLI plugin in `tui.ts` / `src/tui/`
-renders it, location-scoped, into `sidebar.content`. The image uses OpenTUI's
+renders it, location-scoped, into `sidebar.content`. A `changed` push is
+accepted when its tagged location matches this TUI's through the same path
+normalization claims use (a Windows directory must not look foreign because of
+a separator or a case), and the 30s tick that ages the summary also refetches
+the directory - a missed or filtered push can no longer freeze the sidebar
+until restart. The image uses OpenTUI's
 **block** renderer on purpose: `sidebar.content` sits inside a scrollbox and the
 terminal we target (VS Code) announces sixel support but never paints the
 payload — it is confidently and loudly wrong. On a kitty-graphics terminal,
@@ -275,7 +295,8 @@ prevents a real collision.
 - **Declare once — briefly — then keep moving.** `crosstalk_status` sets a unique
   human name (so the user can say "tell George…" and peers can address you), your
   role, and a goal of a few words; `crosstalk_peers` shows active sessions and
-  their leases. Work that does not overlap theirs needs no coordination.
+  their leases. A call without fields declares nothing — pass them. Work that
+  does not overlap theirs needs no coordination.
 - **Keep a live summary under your avatar.** `crosstalk_status { summary: … }` —
   one or two short sentences on what you are doing right now — is shown under
   your avatar in the sidebar and read by peers through `crosstalk_peers`, so
@@ -391,6 +412,7 @@ All optional; set them with the object form of `plugins`:
 | `persist` | `true` | Persist peers and leases through `ctx.storage`. |
 | `storageKey` | `crosstalk` | Storage key prefix. |
 | `announce` | `true` | Brief every session in the system prompt; compact while the session is alone. |
+| `autoDeclare` | `true` | Mirror the session title into goal/summary until the model declares; keeps the mesh and sidebar non-empty. |
 
 Bad values degrade to the default with a warning; a typo never costs an agent
 its tools mid-session. `parseOptions` never throws — a missing bracket is a log

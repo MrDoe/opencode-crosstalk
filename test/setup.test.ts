@@ -433,18 +433,68 @@ test("a peer that missed session.created is healed through session.get", async (
 
   const registration = fake.rpc.registered[0]
   const payload = (await registration?.handlers.directory?.()) as {
-    sessions: Array<{ sessionID: string; projectID?: string; directory?: string; title?: string; portrait?: string }>
+    sessions: Array<{ sessionID: string; projectID?: string; directory?: string; title?: string; goal?: string; portrait?: string }>
   }
   const healed = payload.sessions.find((session) => session.sessionID === "ses_late")
   assert.equal(healed?.projectID, "proj-1")
   assert.equal(healed?.directory, "/repo")
-  assert.equal(healed?.portrait, undefined, "a session without a task gets no portrait")
+  assert.equal(healed?.goal, "enriched ses_late", "the healed title becomes the fallback declaration")
+  assert.ok(healed?.portrait !== undefined, "a fallback task freezes a portrait, so the sidebar renders the session")
   assert.equal(fake.sessionGets.length, 1, "the host is asked once per session")
 
   // A later event must not trigger another read.
   await emit(fake, { type: "session.status", data: { sessionID: "ses_late" } })
   await fake.events.settle()
   assert.equal(fake.sessionGets.length, 1)
+  await fake.cleanup()
+})
+
+test("titles auto-declare until the session speaks for itself", async () => {
+  const fake = await setup()
+  const context = { sessionID: "ses_a" as never, signal: new AbortController().signal, progress: async () => {} } as never
+  await emit(fake, {
+    type: "session.created",
+    data: { sessionID: "ses_a", projectID: "proj-1", location: { directory: "/repo" }, title: "Fix login" },
+  })
+
+  const registration = fake.rpc.registered[0]
+  const directory = async () =>
+    (await registration?.handlers.directory?.()) as {
+      sessions: Array<{ sessionID: string; goal?: string; summary?: string; role?: string; portrait?: string }>
+    }
+
+  let entry = (await directory()).sessions.find((session) => session.sessionID === "ses_a")
+  assert.equal(entry?.goal, "Fix login", "the title fills the goal while nothing is declared")
+  assert.equal(entry?.summary, "Fix login", "and the live summary")
+  assert.ok(entry?.portrait !== undefined, "the fallback task brings a portrait")
+
+  await emit(fake, { type: "session.renamed", data: { sessionID: "ses_a", title: "Fix login form" } })
+  entry = (await directory()).sessions.find((session) => session.sessionID === "ses_a")
+  assert.equal(entry?.goal, "Fix login form", "the placeholder follows a rename")
+
+  await fake.editor.byName("status").execute({ role: "fixer", summary: "reproducing" }, context)
+  await emit(fake, { type: "session.renamed", data: { sessionID: "ses_a", title: "Renamed by hand" } })
+  entry = (await directory()).sessions.find((session) => session.sessionID === "ses_a")
+  assert.equal(entry?.role, "fixer")
+  assert.equal(entry?.summary, "reproducing", "the model's own summary survives a rename")
+  assert.equal(entry?.goal, "Fix login form", "the last placeholder stands until the model sets a goal")
+  await fake.cleanup()
+})
+
+test("autoDeclare: false leaves undeclared sessions bare", async () => {
+  const fake = await setup({ autoDeclare: false })
+  await emit(fake, {
+    type: "session.created",
+    data: { sessionID: "ses_a", projectID: "proj-1", location: { directory: "/repo" }, title: "Fix login" },
+  })
+
+  const registration = fake.rpc.registered[0]
+  const payload = (await registration?.handlers.directory?.()) as {
+    sessions: Array<{ sessionID: string; goal?: string; portrait?: string }>
+  }
+  const entry = payload.sessions.find((session) => session.sessionID === "ses_a")
+  assert.equal(entry?.goal, undefined)
+  assert.equal(entry?.portrait, undefined)
   await fake.cleanup()
 })
 

@@ -22,9 +22,12 @@ const manifestUrl = new URL("../../assets/avatars/manifest.json", import.meta.ur
 const AVATAR_WIDTH = 29
 
 /**
- * How often the sidebar re-checks whether a summary went stale. The directory
- * is only rebuilt on mesh mutations, and a session nobody talks to emits
- * none — without this tick an untouched summary could stay undimmed forever.
+ * How often the sidebar re-checks whether a summary went stale - and refetches
+ * the directory. The directory is normally pushed by the server on mesh
+ * mutations, but a missed push (restart, dropped event, location mismatch)
+ * would otherwise freeze the sidebar until the TUI restarts; this tick makes
+ * the sidebar self-healing. Without the tick an untouched summary could also
+ * stay undimmed forever, because the directory is only rebuilt on mutations.
  */
 const SUMMARY_TICK_MS = 30_000
 
@@ -143,10 +146,7 @@ export default Plugin.define({
   async setup(context) {
     const entries = loadEntries()
     const [directory, setDirectory] = createSignal<DirectoryPayload>({ sessions: [] })
-    // Slow tick for the summary's staleness dim; see `SUMMARY_TICK_MS`.
     const [tick, setTick] = createSignal(0)
-    const summaryClock = setInterval(() => setTick((value) => value + 1), SUMMARY_TICK_MS)
-    summaryClock.unref?.()
     const rpc = context.client.rpc(CrosstalkRpc)
     const location = context.location ?? context.data.location.default()
 
@@ -189,14 +189,43 @@ export default Plugin.define({
       void decorate(next)
     }
 
+    /**
+     * Whether a `changed` push belongs to this TUI's location. Compared
+     * through `normalizeResource` so a Windows path is not rejected for a
+     * separator or a letter case, and an untagged push is accepted: every
+     * server instance mirrors the same project mesh, so a foreign push is
+     * still this directory - refusing it is what left the sidebar frozen.
+     */
+    const forHere = (eventDirectory: string | undefined): boolean => {
+      if (location?.directory === undefined) return true
+      if (eventDirectory === undefined) return true
+      return normalizeResource(eventDirectory) === normalizeResource(location.directory)
+    }
+
+    const refetch = (): void => {
+      rpc
+        .directory({}, { location })
+        .then(apply)
+        .catch(() => {
+          // Keep the last known directory; the next tick retries.
+        })
+    }
+
+    // Slow tick for the summary's staleness dim and the directory refetch;
+    // see `SUMMARY_TICK_MS`.
+    const summaryClock = setInterval(() => {
+      setTick((value) => value + 1)
+      refetch()
+    }, SUMMARY_TICK_MS)
+    summaryClock.unref?.()
+
     try {
       apply(await rpc.directory({}, { location }))
     } catch {
-      // The sidebar stays empty until the next change event arrives.
+      // The sidebar stays empty until the next push - or the next refetch tick.
     }
     const unsubscribe = rpc.events.on("changed", (event) => {
-      const eventDirectory = (event as { location?: { directory?: string } }).location?.directory
-      if (location?.directory !== undefined && eventDirectory !== location.directory) return
+      if (!forHere((event as { location?: { directory?: string } }).location?.directory)) return
       apply(event.data)
     })
 

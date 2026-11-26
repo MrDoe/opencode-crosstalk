@@ -199,9 +199,26 @@ export default Plugin.define({
       if (snapshot) mesh.restore(snapshot)
     }
     // Sessions that declared a task before the portrait feature existed (or
-    // whose snapshot predates it) get one now — the only place a portrait is
+    // whose snapshot predates it) get one now - the only place a portrait is
     // assigned outside `declare`.
     mesh.assignPortraits()
+
+    // A session that never called `crosstalk_status` still deserves a place in
+    // the directory: its title is the honest fallback for goal and summary,
+    // and a real declaration replaces it later (`Mesh.autoDeclareFromTitle`).
+    // A model that declared only a bare name keeps that record untouched -
+    // only absent or still-`auto` declarations are filled or refreshed.
+    const autoDeclare = (sessionID: string | undefined): void => {
+      if (!options.autoDeclare || sessionID === undefined) return
+      mesh.autoDeclareFromTitle(sessionID, mesh.registry.get(sessionID)?.title)
+    }
+    const autoDeclareAll = (): void => {
+      if (!options.autoDeclare) return
+      for (const peer of mesh.registry.list({ scope: "server" })) {
+        mesh.autoDeclareFromTitle(peer.sessionID, peer.title)
+      }
+    }
+    autoDeclareAll()
 
     // Persist after quiet periods: the event stream is chatty and a write per
     // event would hammer storage for state that is identical.
@@ -236,6 +253,8 @@ export default Plugin.define({
           parentID: info.parentID,
           created: info.time?.created,
         })
+        // The healed title is the first title this record ever had.
+        autoDeclare(sessionID)
         schedulePersist()
         scheduleRpc()
       } catch {
@@ -248,6 +267,9 @@ export default Plugin.define({
         mesh.applyEvent(event)
         schedulePersist()
         const sessionID = eventSessionID(event)
+        // A created or renamed session carries the title the fallback speaks
+        // from; refresh right when it appears or changes, not on every event.
+        if (event.type === "session.created" || event.type === "session.renamed") autoDeclare(sessionID)
         if (
           sessionID !== undefined &&
           mesh.registry.get(sessionID)?.projectID === undefined &&

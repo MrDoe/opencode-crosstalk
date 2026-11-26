@@ -10,6 +10,8 @@ import { formatClaims } from "../core/format.ts"
 import { readBoolean, readEnum, readNumber, readString, readStringArray } from "./args.ts"
 import { jsonSchema, run, type CrosstalkToolInfo, type ToolDeps } from "./types.ts"
 
+const ACTIONS = ["claim", "renew", "release", "list"] as const
+
 export function claimTool(deps: ToolDeps): CrosstalkToolInfo {
   return {
     name: "claim",
@@ -21,14 +23,16 @@ export function claimTool(deps: ToolDeps): CrosstalkToolInfo {
       "Paths are normalized, and relative paths resolve against this session's directory.",
       "Claim keys are exact: there is no glob expansion, and leasing a directory",
       "does not cover the files inside it — claim each file you edit.",
+      "If you omit action, it defaults to claim when resources are given, and to list otherwise.",
     ].join(" "),
     input: jsonSchema({
       type: "object",
       properties: {
         action: {
           type: "string",
-          enum: ["claim", "renew", "release", "list"],
-          description: "Operation. 'list' reports the leases you hold and needs no resources.",
+          enum: ACTIONS,
+          description:
+            "Operation: claim, renew, release, or list. Omit it to claim when resources are given, or to list when they are not. 'list' reports the leases you hold and needs no resources.",
         },
         resources: {
           type: "array",
@@ -44,16 +48,14 @@ export function claimTool(deps: ToolDeps): CrosstalkToolInfo {
         },
         includeExpired: { type: "boolean", description: "Include lapsed leases in list output" },
       },
-      required: ["action"],
       additionalProperties: false,
     }),
     async execute(input, context) {
       return run(() => {
-        const action = readEnum(input, "action", ["claim", "renew", "release", "list"] as const, undefined)
-        if (action === undefined) {
-          return 'crosstalk: "action" is required (claim, renew, release, or list)'
-        }
+        const explicitAction = readEnum(input, "action", ACTIONS)
         const resources = readStringArray(input, "resources", { max: 64, maxLength: 400 })
+        const action =
+          explicitAction ?? (resources !== undefined && resources.length > 0 ? "claim" : "list")
         const ttlSeconds = readNumber(input, "ttlSeconds", { min: 1, max: 86_400 })
         const note = readString(input, "note", { max: 200 })
         const force = readBoolean(input, "force", false)
@@ -61,7 +63,7 @@ export function claimTool(deps: ToolDeps): CrosstalkToolInfo {
         const includeExpired = readBoolean(input, "includeExpired", false)
 
         if (action !== "list" && (resources === undefined || resources.length === 0)) {
-          return `crosstalk: action "${action}" needs "resources" (use action "list" to see what you hold)`
+          return `crosstalk: action "${action}" needs "resources" — the exact file paths or named resources you mean (use action "list" to see what you hold)`
         }
 
         const result = deps.mesh.claim(context.sessionID, {

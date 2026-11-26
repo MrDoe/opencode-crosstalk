@@ -24,23 +24,34 @@ export function waitTool(deps: ToolDeps): CrosstalkToolInfo {
         for: {
           type: "string",
           enum: ["peer_idle", "claim_free"],
-          description: "Wait for a peer to go idle, or for a resource to become unclaimed",
+          description:
+            "Wait for a peer to go idle, or for a resource to become unclaimed. Omit it when you pass exactly one of sessionID or resource; the mode is then inferred.",
         },
         sessionID: { type: "string", description: "Peer to wait for. Required for peer_idle." },
         resource: { type: "string", description: "File path or named resource. Required for claim_free." },
         timeoutSeconds: { type: "number", description: "Give up after this many seconds (default 30)" },
       },
-      required: ["for"],
       additionalProperties: false,
     }),
     async execute(input, context) {
       return run(async () => {
-        const forWhat = readString(input, "for", { required: true })
-        if (forWhat !== "peer_idle" && forWhat !== "claim_free") {
-          return 'crosstalk: "for" must be "peer_idle" or "claim_free"'
-        }
+        const explicitFor = readString(input, "for")
         const sessionID = readString(input, "sessionID", { max: 200 })
         const resource = readString(input, "resource", { max: 400 })
+        // Keep `for` optional in the schema so an omitted mode reaches this
+        // message instead of the host's bare `Missing key` rejection.
+        let forWhat = explicitFor
+        if (forWhat === undefined) {
+          if (sessionID !== undefined && resource !== undefined) {
+            return 'crosstalk: give "for" when both "sessionID" and "resource" are set — "peer_idle" or "claim_free"'
+          }
+          forWhat = sessionID !== undefined ? "peer_idle" : resource !== undefined ? "claim_free" : undefined
+        }
+        if (forWhat !== "peer_idle" && forWhat !== "claim_free") {
+          return explicitFor === undefined
+            ? 'crosstalk: "for" is required — use "peer_idle" (with "sessionID") or "claim_free" (with "resource")'
+            : 'crosstalk: "for" must be "peer_idle" or "claim_free"'
+        }
         const timeoutSeconds = readNumber(input, "timeoutSeconds", { min: 0, max: 600, fallback: 30 })
         const timeoutMs = clampWait((timeoutSeconds ?? 30) * 1000, deps.options)
 

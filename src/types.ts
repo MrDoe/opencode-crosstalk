@@ -45,6 +45,13 @@ export interface Declared {
    * frozen on the peer record — see `Peer.portrait`.
    */
   avatar?: string
+  /**
+   * True while the mesh filled this record from the session title as a
+   * fallback (`autoDeclare`), before the session ever called
+   * `crosstalk_status`. Any real declaration clears it; until then, renames
+   * keep the fallback goal and summary in step with the title.
+   */
+  auto?: boolean
   updatedAt?: number
 }
 

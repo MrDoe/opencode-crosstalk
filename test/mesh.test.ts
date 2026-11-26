@@ -178,6 +178,47 @@ test("a session that only wrote a summary still gets its portrait", () => {
   assert.ok(portrait !== undefined && /^(female|male)\//.test(portrait), "a summary alone is a task, so the avatar appears with it")
 })
 
+// �� auto-declare from title ����������������������������������������
+
+test("autoDeclareFromTitle fills an undeclared record and freezes its portrait", () => {
+  const { mesh } = createTestMesh({ avatars: personaPool })
+  mesh.applyEvent(createdEvent("ses_a", { title: "Investigate the timeout" }))
+
+  assert.equal(mesh.autoDeclareFromTitle("ses_a", "Investigate the timeout"), true)
+  const peer = mesh.registry.get("ses_a")
+  assert.equal(peer?.declared?.goal, "Investigate the timeout")
+  assert.equal(peer?.declared?.summary, "Investigate the timeout")
+  assert.equal(peer?.declared?.auto, true)
+  assert.ok(peer?.portrait !== undefined, "the fallback title is a task, so the sidebar has art to show")
+  assert.equal(mesh.autoDeclareFromTitle("ses_missing", "whatever"), false, "unknown sessions are not conjured")
+  assert.equal(mesh.autoDeclareFromTitle("ses_a", ""), false, "an empty title declares nothing")
+})
+
+test("a rename refreshes an auto-declared summary but never a real one", () => {
+  const { mesh } = createTestMesh({ avatars: personaPool })
+  mesh.applyEvent(createdEvent("ses_a", { title: "old title" }))
+  mesh.autoDeclareFromTitle("ses_a", "old title")
+
+  assert.equal(mesh.autoDeclareFromTitle("ses_a", "new title"), true)
+  assert.equal(mesh.registry.get("ses_a")?.declared?.summary, "new title", "the placeholder follows the title")
+
+  mesh.declare("ses_a", { role: "writer" })
+  assert.equal(mesh.registry.get("ses_a")?.declared?.auto, undefined, "a real declaration clears the auto marker")
+
+  assert.equal(mesh.autoDeclareFromTitle("ses_a", "renamed again"), false, "the model owns the record now")
+  assert.equal(mesh.registry.get("ses_a")?.declared?.summary, "new title", "the title never overwrites the model")
+})
+
+test("auto-declaring an empty mesh changes nothing and notifies nothing", () => {
+  const { mesh } = createTestMesh({ avatars: personaPool })
+  let notified = 0
+  mesh.subscribe(() => {
+    notified += 1
+  })
+  assert.equal(mesh.autoDeclareFromTitle("ses_ghost", "title"), false)
+  assert.equal(notified, 0)
+})
+
 test("assignPortraits backfills restored task-bearing peers without moving frozen ones", () => {
   const { mesh } = createTestMesh({ avatars: personaPool })
   mesh.restore({

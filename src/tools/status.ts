@@ -98,6 +98,15 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         const claimsHeld = self.claims.length
         const now = deps.mesh.now()
         const hints: string[] = []
+        // A call without fields declares nothing - it only reads. Say so while
+        // the record still has no task-bearing declaration of its own: an
+        // agent that ran this tool bare otherwise believes it joined.
+        const bareCall = !(name || role || goal || note || avatar || workingOn || summary)
+        if (bareCall && (self.declared === undefined || self.declared.auto === true)) {
+          hints.push(
+            "this call passed no fields, so it declared nothing - crosstalk_status { name, role, goal, summary } is what joins the directory",
+          )
+        }
         if (peers.some((peer) => peer.claims.length > 0)) {
           hints.push("some peers hold leases — use crosstalk_claim before editing their files")
         }
@@ -108,7 +117,11 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         if (claimsHeld === 0 && peers.length > 0) {
           hints.push("claim what you are about to edit: crosstalk_claim { resources: [...] }")
         }
-        if (self.declared?.summary === undefined && peers.length > 0) {
+        // An auto-filled record carries the *title* as summary — that is not
+        // the session speaking; keep nudging until a real declaration lands.
+        if (self.declared?.auto === true) {
+          hints.push("your directory entry is only the session title — declare for real: crosstalk_status { name, role, goal, summary }")
+        } else if (self.declared?.summary === undefined && peers.length > 0) {
           hints.push('tell peers what you are doing right now: crosstalk_status { summary: "…" }')
         }
         // A summary nobody refreshes reads as a promise: the sidebar dims it

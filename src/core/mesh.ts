@@ -344,6 +344,34 @@ export class Mesh {
   }
 
   /**
+   * Fill a missing declaration from the session title, so the directory is
+   * never blank while the agent has not called `crosstalk_status` yet: the
+   * title becomes the goal and the live summary, and with it a task exists,
+   * so the portrait freezes and the sidebar can render.
+   *
+   * Only touches records with no declaration at all, or one still marked
+   * `auto` - a real declaration by the model owns the record from then on,
+   * and later renames never overwrite it. Re-running on `session.renamed`
+   * keeps an auto-declared record synced with the title.
+   *
+   * Returns true when the record was created or refreshed.
+   */
+  autoDeclareFromTitle(sessionID: string, title: string | undefined): boolean {
+    if (title === undefined || title === "") return false
+    const peer = this.registry.get(sessionID)
+    if (peer === undefined) return false
+    if (peer.declared !== undefined && peer.declared.auto !== true) return false
+    const now = this.#clock.now()
+    peer.declared = { goal: title, summary: title, summaryAt: now, auto: true, updatedAt: now }
+    if (peer.portrait === undefined) {
+      const portrait = portraitFor(this.#avatars, { sessionID })
+      if (portrait !== undefined) peer.portrait = portrait
+    }
+    this.#notify()
+    return true
+  }
+
+  /**
    * Send a message to peers, then try to inject it into each recipient's live
    * session. A failed injection is not an error: the message stays in the
    * recipient's mailbox and surfaces on their next `crosstalk_inbox`.

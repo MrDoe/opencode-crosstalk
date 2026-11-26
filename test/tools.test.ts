@@ -205,6 +205,28 @@ test("status without peers says nothing about summaries", async () => {
   assert.doesNotMatch(output, /tell peers what you are doing right now/)
 })
 
+test("a bare status call says out loud that it declared nothing", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self", { title: "Reading the logs" }))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+
+  const bare = await h.status({})
+  assert.match(bare, /passed no fields, so it declared nothing/)
+
+  const real = await h.status({ role: "reader" })
+  assert.doesNotMatch(real, /passed no fields/, "a field-bearing call is not a no-op")
+})
+
+test("an auto-declared entry is called out as the title placeholder", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self", { title: "Investigate the timeout" }))
+  h.mesh.autoDeclareFromTitle("ses_self", "Investigate the timeout")
+
+  const output = await h.status({})
+  assert.match(output, /directory entry is only the session title/)
+  assert.match(output, /Investigate the timeout/, "the placeholder itself is shown")
+})
+
 test("status with no arguments still reports who you are", async () => {
   const h = harness()
   const output = await h.status({})
@@ -333,7 +355,7 @@ test("peers explains an empty channel rather than returning nothing", async () =
 
 test("peers rejects an unknown status value", async () => {
   const h = harness()
-  assert.match(await h.peers({ status: "sleepy" }), /^crosstalk: "status" must be one of: all, running, idle$/)
+  assert.match(await h.peers({ status: "sleepy" }), /^crosstalk: "status" must be one of: all, running, idle \(got "sleepy"\)$/)
 })
 
 // ── crosstalk_peers: overlap ────────────────────────────────────────────────
@@ -646,8 +668,22 @@ test("claim requires resources for everything but list", async () => {
   const h = harness()
   assert.match(await h.claim({ action: "claim" }), /needs "resources"/)
   assert.match(await h.claim({ action: "renew", resources: [] }), /needs "resources"/)
-  assert.match(await h.claim({}), /^crosstalk: "action" is required/)
   assert.match(await h.claim({ action: "teleport" }), /"action" must be one of/)
+  assert.match(await h.claim({ action: "teleport" }), /got "teleport"/)
+})
+
+test("claim infers the action when it is omitted", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+
+  // The host validates against the JSON Schema before the executor runs, and
+  // its "Missing key" message carries no guidance. Keep `action` optional so
+  // the executor can infer it instead.
+  const schema = h.tool("claim").input as { required?: string[] }
+  assert.deepEqual(schema.required ?? [], [])
+
+  assert.match(await h.claim({ resources: ["src/a.ts"], note: "editing", ttlSeconds: 120 }), /1 claimed/)
+  assert.match(await h.claim({}), /you currently hold:/)
 })
 
 test("claim rejects a non-string resource list", async () => {
@@ -705,10 +741,26 @@ test("wait returns as soon as a claim is released", async () => {
 
 test("wait validates its mode and required arguments", async () => {
   const h = harness()
-  assert.match(await h.wait({}), /^crosstalk: "for" is required$/)
+  assert.match(await h.wait({}), /^crosstalk: "for" is required — use "peer_idle"/)
   assert.match(await h.wait({ for: "forever" }), /must be "peer_idle" or "claim_free"/)
   assert.match(await h.wait({ for: "peer_idle" }), /needs "sessionID"/)
   assert.match(await h.wait({ for: "claim_free" }), /needs "resource"/)
+  assert.match(
+    await h.wait({ sessionID: "ses_peer", resource: "/repo/a.ts" }),
+    /give "for" when both "sessionID" and "resource" are set/,
+  )
+})
+
+test("wait infers the mode when it is omitted", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+
+  const schema = h.tool("wait").input as { required?: string[] }
+  assert.deepEqual(schema.required ?? [], [])
+
+  assert.match(await h.wait({ sessionID: "ses_peer", timeoutSeconds: 0 }), /peer idle after/)
+  assert.match(await h.wait({ resource: "/repo/free.ts", timeoutSeconds: 0 }), /claim free after/)
 })
 
 // ── argument reader ──────────────────────────────────────────────────────────
@@ -716,7 +768,7 @@ test("wait validates its mode and required arguments", async () => {
 test("a non-object tool input is treated as empty rather than crashing", async () => {
   const h = harness()
   assert.match(await h.status(undefined), /you are ses_self/)
-  assert.match(await h.claim("nonsense"), /"action" is required/)
+  assert.match(await h.claim("nonsense"), /you hold no leases/)
   assert.match(await h.inbox(42), /0 messages/)
 })
 

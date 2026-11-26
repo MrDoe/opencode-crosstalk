@@ -34,3 +34,13 @@ with no token at all. One-time setup on npmjs.com: package Settings → Trusted
 publishing → GitHub Actions, `MrDoe` / `opencode-crosstalk` / `publish.yml`;
 the config must complete its first publish within 2 days. `npm stage list` and
 `npm stage approve` cannot use OIDC, so approval stays in the browser.
+
+## [2026-11-05] change | inferred tool modes replace the host's Missing key error
+The host validates tool input against the JSON Schema before `execute`, so a
+missing `required` key produced the bare `Invalid arguments for tool … Missing
+key` block with no accepted values. Made `crosstalk_claim.action` optional and
+inferred (`resources` → claim, otherwise list), and made `crosstalk_wait.for`
+optional and inferred from exactly one of `sessionID`/`resource`; both refusals
+that remain now read as prose. `readEnum` errors append the received value.
+Tests, README, AGENTS.md updated. Documented the rule and the two-phase
+validation in [[concepts/tool-argument-errors]].

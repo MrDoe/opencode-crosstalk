@@ -88,7 +88,8 @@ export function readEnum<T extends string>(
   const raw = record(input)[key]
   if (raw === undefined || raw === null) return fallback
   if (typeof raw !== "string" || !(allowed as readonly string[]).includes(raw)) {
-    throw new ArgError(`"${key}" must be one of: ${allowed.join(", ")}`)
+    const got = typeof raw === "string" ? JSON.stringify(raw) : String(raw)
+    throw new ArgError(`"${key}" must be one of: ${allowed.join(", ")} (got ${got})`)
   }
   return raw as T
 }

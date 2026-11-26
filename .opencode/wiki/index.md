@@ -2,7 +2,7 @@
 title: opencode-crosstalk wiki
 tags: [index]
 sourceRefs: [README.md, AGENTS.md]
-lastReviewed: 2026-10-29
+lastReviewed: 2026-11-05
 ---
 
 # opencode-crosstalk wiki
@@ -21,3 +21,4 @@ keep coordination working across every OpenCode session.
 - [[concepts/global-installation]] — global discovery, the symlink installer, and how to verify a load.
 - [[concepts/communication-wall]] — listing is permissive; sending is walled to a provable project.
 - [[concepts/releasing]] — tag-triggered staging, browser approval, and the `NPM_TOKEN` secret.
+- [[concepts/tool-argument-errors]] — host schema checks vs. executor errors, and which fields may be inferred.

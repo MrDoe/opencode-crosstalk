@@ -69,7 +69,11 @@ never fires.
   `readEnum` / `readStringArray` in `src/tools/args.ts` do the real narrowing and
   carry the real limits (`max`, `min`, `maxLength`). Keep the two in step — a
   schema that permits more than the validator accepts is a bug, and it stays
-  invisible until a model trips it.
+  invisible until a model trips it. Where the executor can infer a missing
+  field — `claim`'s `action` from the presence of `resources`, `wait`'s `for`
+  from `sessionID`/`resource` — leave it out of `required`: the host rejects a
+  missing required key with a bare `Missing key` before the executor can return
+  its clearer message.
 - **The tool surface is seconds, the mesh is milliseconds.** `ttlSeconds`,
   `timeoutSeconds`, and `inbox.wait` are converted in the tool, never in core.
   Every blocking call also goes through `clampWait`, so a requested timeout is
@@ -80,10 +84,15 @@ never fires.
 - **The `avatar` hint steers a frozen portrait.** `crosstalk_status` accepts an
   optional emoji that lands in `Declared` like any other field. The mesh resolves
   it (with role and name) through `src/core/avatar.ts` when a session first
-  declares a task (a role or a goal) and stores the result as `Peer.portrait` —
+  declares a task (a role or a goal) and stores the result as `Peer.portrait` -
   assigned once, never re-derived. The TUI renders that path, and the tab glyph
   derives from it, so neither a role change nor a re-declaration can move the
-  artwork. Sessions without a task show no avatar.
+  artwork. Sessions without a task show no avatar - and since `autoDeclare`
+  (default on) an undeclared session is never without a task for long: the
+  title fills goal and summary (`Declared.auto`), renames refresh the
+  placeholder, and a field-bearing `crosstalk_status` call clears the marker
+  and owns the record. A *bare* status call declares nothing - it only reads,
+  and the output says so.
 - **Bad input is returned, not thrown.** `run()` turns an `ArgError` into
   `crosstalk: …` content the model can correct itself from, and cross-field rules
   (`for: "peer_idle"` needs `sessionID`) are an early `return` of a message.
@@ -293,7 +302,8 @@ prevents a real collision.
 - **Declare once — briefly — then keep moving.** `crosstalk_status` sets a unique
   human name (so the user can say "tell George…" and peers can address you), your
   role, and a goal of a few words; `crosstalk_peers` shows active sessions and
-  their leases. Work that does not overlap theirs needs no coordination.
+  their leases. A call without fields declares nothing — pass them. Work that
+  does not overlap theirs needs no coordination.
 - **Keep a live summary under your avatar.** `crosstalk_status { summary: … }` —
   one or two short sentences on what you are doing right now — is shown under
   your avatar in the sidebar and read by peers through `crosstalk_peers`, so
