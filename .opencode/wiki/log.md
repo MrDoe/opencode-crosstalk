@@ -1,5 +1,16 @@
 # Wiki log
 
+## [2026-11-26] release | v0.4.0 staged after conflict-marker fix
+Merge `7dffd80` had committed unresolved conflict markers in `src/config.ts`
+(autoDeclare vs loopGuard — both kept; both features are live in
+`src/index.ts` and `src/tools/index.ts`), and the same merge lost the
+`normalizeResource` import in `src/tui/index.tsx`. Fixed in `f360982` +
+`e0c27dc`, `npm run check` green (304 tests), cut `v0.4.0` with
+`npm version minor`; run 45793715041 staged `0.4.0`
+(id 70a3e9d1-79bd-4752-8b46-8e52290f5c37, tag latest). Approval in the npm
+web UI pending. The global install is the `opencode.jsonc` path entry to the
+checkout, so it runs 0.4.0 code already.
+
 ## [2026-11-24] ingest | OMO-Slim extension landing — nine tools, briefs, roles
 
 ## [2026-10-29] seed | runtime, install, and coordination wall

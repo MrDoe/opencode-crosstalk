@@ -2,7 +2,7 @@
 title: Releasing (staged publishing)
 tags: [concept, release, ci, npm]
 sourceRefs: [.github/workflows/publish.yml, package.json, README.md]
-lastReviewed: 2026-11-24
+lastReviewed: 2026-11-26
 ---
 
 # Releasing (staged publishing)
@@ -45,6 +45,16 @@ token, so they are not workflow steps.
   repository; no `--provenance` flag.
 
 ## History
+
+`opencode-crosstalk@0.4.0` (2026-11-26) was cut after repairing merge `7dffd80`,
+which had committed unresolved conflict markers in `src/config.ts`. The
+`autoDeclare`/`loopGuard` conflict resolved by keeping both — each option drives
+live code on its own side. The same merge had dropped the
+`normalizeResource` import in `src/tui/index.tsx`, so a clean typecheck needs
+both fixes. A tidy `git status` is no proof the committed tree parses: run the
+check gate (`npm run check`) before versioning. Staged by run 45793715041
+(stage id `70a3e9d1-79bd-4752-8b46-8e52290f5c37`, tag `latest`); browser
+approval pending as of this writing.
 
 `opencode-crosstalk@0.3.0` added reply/continue, evidence briefs, the doctor
 self-check and the role skill kit. It was cut with `npm version minor` from
