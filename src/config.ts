@@ -40,12 +40,17 @@ export interface CrosstalkOptions {
   storageKey: string
   /** Append a short briefing to the agent's system prompt. */
   announce: boolean
+<<<<<<< HEAD
   /**
    * Fill an undeclared session's goal/summary from its title until the model
    * calls `crosstalk_status` with fields. Keeps the mesh and the TUI sidebar
    * non-empty; a real declaration replaces it.
    */
   autoDeclare: boolean
+=======
+  /** Warn then block repeated identical coordination calls (opt-in). */
+  loopGuard: boolean
+>>>>>>> 8f5f1836f63713b65451349cdfbf9281b706c991
 }
 
 export const DEFAULTS: CrosstalkOptions = {
@@ -64,7 +69,11 @@ export const DEFAULTS: CrosstalkOptions = {
   persist: true,
   storageKey: "crosstalk",
   announce: true,
+<<<<<<< HEAD
   autoDeclare: true,
+=======
+  loopGuard: false,
+>>>>>>> 8f5f1836f63713b65451349cdfbf9281b706c991
 }
 
 const SCOPES: readonly Scope[] = ["project", "location", "server"]
@@ -178,7 +187,11 @@ export function parseOptions(raw: unknown): ParsedOptions {
       persist: booleanOption(input, "persist", DEFAULTS.persist, warnings),
       storageKey: stringOption(input, "storageKey", DEFAULTS.storageKey, /^[A-Za-z0-9_./-]+$/, warnings),
       announce: booleanOption(input, "announce", DEFAULTS.announce, warnings),
+<<<<<<< HEAD
       autoDeclare: booleanOption(input, "autoDeclare", DEFAULTS.autoDeclare, warnings),
+=======
+      loopGuard: booleanOption(input, "loopGuard", DEFAULTS.loopGuard, warnings),
+>>>>>>> 8f5f1836f63713b65451349cdfbf9281b706c991
     },
   }
 }

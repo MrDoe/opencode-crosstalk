@@ -14,6 +14,16 @@ function mailbox(overrides: { maxPerSession?: number; ttlMs?: number } = {}) {
   return { clock, box }
 }
 
+test("find resolves a message by id only in the addressed session's mailbox", () => {
+  const { box } = mailbox()
+  box.send({ from: "ses_a", to: ["ses_b"], text: "hello", topic: "T#1" })
+
+  assert.equal(box.find("ses_b", "m1")?.text, "hello")
+  assert.equal(box.find("ses_b", "m1")?.topic, "T#1")
+  assert.equal(box.find("ses_a", "m1"), undefined, "the sender keeps no copy")
+  assert.equal(box.find("ses_b", "m404"), undefined)
+})
+
 test("send appends one copy per recipient in order", () => {
   const { box } = mailbox()
   const sent = box.send({ from: "ses_a", to: ["ses_b", "ses_c"], text: "hello" })

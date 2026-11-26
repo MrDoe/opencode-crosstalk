@@ -7,7 +7,9 @@
 
 import type { ToolEditor } from "@opencode/plugin/promise/tool"
 import { claimTool } from "./claim.ts"
+import { continueTool } from "./continue.ts"
 import { heartbeatTool } from "./heartbeat.ts"
+import { replyTool } from "./reply.ts"
 import { inboxTool } from "./inbox.ts"
 import { peersTool } from "./peers.ts"
 import { sendTool } from "./send.ts"
@@ -24,6 +26,8 @@ export const toolFactories: Array<(deps: ToolDeps) => CrosstalkToolInfo> = [
   statusTool,
   peersTool,
   sendTool,
+  replyTool,
+  continueTool,
   inboxTool,
   claimTool,
   heartbeatTool,
@@ -41,6 +45,12 @@ export const toolFactories: Array<(deps: ToolDeps) => CrosstalkToolInfo> = [
  */
 export function registerTools(editor: ToolEditor, deps: ToolDeps): void {
   editor.namespace({ name: deps.options.namespace, description: NAMESPACE_DESCRIPTION })
+  // The optional guard counts only calls whose input AND result are identical
+  // to the previous one, so a repeated read of changed mail never counts.
+  // `inbox`, leases, status and waits are exempt: blocking retrieval would
+  // deadlock the recovery path the guard is meant to protect.
+  const guarded = new Set(["send", "reply"])
+  const loopState = new Map<string, { key: string; result: string; count: number }>()
   for (const factory of toolFactories) {
     const tool = factory(deps)
     const execute = tool.execute
@@ -48,7 +58,21 @@ export function registerTools(editor: ToolEditor, deps: ToolDeps): void {
       ...tool,
       execute: async (input, context) => {
         await deps.mesh.flushPendingInjection(context.sessionID, context.signal)
-        return execute(input, context)
+        const result = await execute(input, context)
+        if (!deps.options.loopGuard || !guarded.has(tool.name)) return result
+
+        const text = typeof result.content === "string" ? result.content : JSON.stringify(result.content)
+        const key = `${tool.name}\u0000${JSON.stringify(input ?? {})}`
+        const previous = loopState.get(context.sessionID)
+        const count = previous?.key === key && previous.result === text ? previous.count + 1 : 1
+        loopState.set(context.sessionID, { key, result: text, count })
+        if (count > 5) {
+          return { content: `crosstalk: repeated identical ${tool.name} call blocked — change the message or stop` }
+        }
+        if (count === 3) {
+          return { content: `${text}\n  warning: repeated identical call — change the message or stop` }
+        }
+        return result
       },
       options: {
         namespace: deps.options.namespace,
@@ -59,4 +83,14 @@ export function registerTools(editor: ToolEditor, deps: ToolDeps): void {
   }
 }
 
-export { claimTool, heartbeatTool, inboxTool, peersTool, sendTool, statusTool, waitTool }
+export {
+  claimTool,
+  continueTool,
+  heartbeatTool,
+  inboxTool,
+  peersTool,
+  replyTool,
+  sendTool,
+  statusTool,
+  waitTool,
+}

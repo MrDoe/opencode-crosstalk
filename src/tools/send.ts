@@ -3,7 +3,7 @@
  */
 
 import { formatSend } from "../core/format.ts"
-import { readBoolean, readEnum, readString } from "./args.ts"
+import { readBoolean, readEnum, readString, readStringArray } from "./args.ts"
 import { jsonSchema, run, type CrosstalkToolInfo, type ToolDeps } from "./types.ts"
 
 export function sendTool(deps: ToolDeps): CrosstalkToolInfo {
@@ -27,8 +27,8 @@ export function sendTool(deps: ToolDeps): CrosstalkToolInfo {
         topic: { type: "string", description: "Optional thread label, e.g. auth-refactor" },
         kind: {
           type: "string",
-          enum: ["message", "status", "request", "answer", "system"],
-          description: "Intent. 'request' expects a reply; 'answer' is a response to one.",
+          enum: ["message", "status", "request", "answer", "decline", "system"],
+          description: "Intent. 'request' expects a reply; 'answer' responds to one; 'decline' asks for no reply.",
         },
         delivery: {
           type: "string",
@@ -36,6 +36,13 @@ export function sendTool(deps: ToolDeps): CrosstalkToolInfo {
           description: "'steer' (default) folds into the recipient's current turn; 'queue' waits for it to end",
         },
         replyTo: { type: "string", description: "Message ID this answers" },
+        writeScope: {
+          type: "array",
+          items: { type: "string" },
+          description: "Exact files the task may edit (one owner per file per phase)",
+        },
+        validation: { type: "string", description: "Gate command that decides whether the work landed green" },
+        evidence: { type: "string", description: "What must be shown to prove completion, e.g. hash + gate result" },
       },
       required: ["text"],
       additionalProperties: false,
@@ -47,9 +54,17 @@ export function sendTool(deps: ToolDeps): CrosstalkToolInfo {
         const role = readString(input, "role", { max: 64 })
         const all = readBoolean(input, "all", false)
         const topic = readString(input, "topic", { max: 80 })
-        const kind = readEnum(input, "kind", ["message", "status", "request", "answer", "system"] as const, "message")
+        const kind = readEnum(
+          input,
+          "kind",
+          ["message", "status", "request", "answer", "decline", "system"] as const,
+          "message",
+        )
         const delivery = readEnum(input, "delivery", ["steer", "queue"] as const, "steer")
         const replyTo = readString(input, "replyTo", { max: 80 })
+        const writeScope = readStringArray(input, "writeScope", { max: 32, maxLength: 200 })
+        const validation = readString(input, "validation", { max: 400 })
+        const evidence = readString(input, "evidence", { max: 800 })
 
         // `all` defaults to false rather than undefined, so test the values.
         if (!to && !role && !all) {
@@ -67,6 +82,9 @@ export function sendTool(deps: ToolDeps): CrosstalkToolInfo {
             ...(kind ? { kind } : {}),
             ...(delivery ? { delivery } : {}),
             ...(replyTo ? { replyTo } : {}),
+            ...(validation ? { validation } : {}),
+            ...(evidence ? { evidence } : {}),
+            ...(writeScope ? { writeScope } : {}),
           },
           context.signal,
         )

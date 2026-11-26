@@ -120,6 +120,12 @@ export class Mailbox {
     return messages
   }
 
+  /** Resolve one message by id in a session's own mailbox, for reply-by-id. */
+  find(sessionID: string, id: string): CrosstalkMessage | undefined {
+    this.#pruneBox(sessionID)
+    return (this.#boxes.get(sessionID) ?? []).find((message) => message.id === id)
+  }
+
   unreadCount(sessionID: string): number {
     this.#pruneBox(sessionID)
     return (this.#boxes.get(sessionID) ?? []).filter((m) => m.readAt === undefined).length

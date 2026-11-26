@@ -20,5 +20,6 @@ keep coordination working across every OpenCode session.
 - [[concepts/session-briefing]] — how the model learns crosstalk exists, including when it is alone.
 - [[concepts/global-installation]] — global discovery, the symlink installer, and how to verify a load.
 - [[concepts/communication-wall]] — listing is permissive; sending is walled to a provable project.
+- [[concepts/omo-slim-extension-landing]] — the nine-tool landing: reply/decline, evidence briefs, doctor self-check, click-to-focus, and the role skill kit.
 - [[concepts/releasing]] — tag-triggered staging, browser approval, and the `NPM_TOKEN` secret.
 - [[concepts/tool-argument-errors]] — host schema checks vs. executor errors, and which fields may be inferred.

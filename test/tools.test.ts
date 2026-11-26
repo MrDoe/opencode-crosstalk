@@ -16,6 +16,8 @@ interface Harness {
   status: (input: unknown, sessionID?: string) => Promise<string>
   peers: (input: unknown, sessionID?: string) => Promise<string>
   send: (input: unknown, sessionID?: string) => Promise<string>
+  reply: (input: unknown, sessionID?: string) => Promise<string>
+  continue: (input: unknown, sessionID?: string) => Promise<string>
   inbox: (input: unknown, sessionID?: string) => Promise<string>
   claim: (input: unknown, sessionID?: string) => Promise<string>
   wait: (input: unknown, sessionID?: string) => Promise<string>
@@ -38,6 +40,8 @@ function harness(options: TestMeshOptions = {}, optionOverrides = {}): Harness {
     status: (input, sessionID) => call("status", input, sessionID),
     peers: (input, sessionID) => call("peers", input, sessionID),
     send: (input, sessionID) => call("send", input, sessionID),
+    reply: (input, sessionID) => call("reply", input, sessionID),
+    continue: (input, sessionID) => call("continue", input, sessionID),
     inbox: (input, sessionID) => call("inbox", input, sessionID),
     claim: (input, sessionID) => call("claim", input, sessionID),
     wait: (input, sessionID) => call("wait", input, sessionID),
@@ -47,7 +51,7 @@ function harness(options: TestMeshOptions = {}, optionOverrides = {}): Harness {
 
 // ── registration ─────────────────────────────────────────────────────────────
 
-test("registration publishes one namespace and seven namespaced tools", () => {
+test("registration publishes one namespace and nine namespaced tools", () => {
   const h = harness()
   assert.equal(h.editor.namespaces.length, 1)
   assert.equal(h.editor.namespaces[0]?.name, "crosstalk")
@@ -56,12 +60,14 @@ test("registration publishes one namespace and seven namespaced tools", () => {
     "crosstalk_status",
     "crosstalk_peers",
     "crosstalk_send",
+    "crosstalk_reply",
+    "crosstalk_continue",
     "crosstalk_inbox",
     "crosstalk_claim",
     "crosstalk_heartbeat",
     "crosstalk_wait",
   ])
-  assert.equal(toolFactories.length, 7)
+  assert.equal(toolFactories.length, 9)
 })
 
 test("every tool carries the configured namespace, permission, and codemode flag", () => {
@@ -780,4 +786,137 @@ test("argument errors name the offending key, and other failures still throw", a
   // A genuine bug still surfaces as a real error rather than being swallowed.
   const broken = { ...tool, execute: async () => Promise.reject(new Error("kaboom")) }
   await assert.rejects(() => execTool(broken as never, {}, "ses_self"), /kaboom/)
+})
+
+// ── crosstalk_reply ──────────────────────────────────────────────────────────
+
+test("reply answers the sender of a message by its id", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.status({ name: "Peer" }, "ses_peer")
+  await h.mesh.send("ses_peer", { to: "ses_self", text: "review this", topic: "T#7" })
+  const original = (await h.mesh.inbox("ses_self", { waitMs: 0, markRead: false })).messages[0]
+  assert.ok(original)
+
+  const output = await h.reply({ messageId: original.id, text: "on it" })
+  assert.match(output, /in reply to/)
+  assert.equal(h.deliverer.calls.at(-1)?.kind, "answer")
+  assert.equal(h.deliverer.calls.at(-1)?.to, "ses_peer")
+  assert.equal((h.deliverer.calls.at(-1)?.meta as { replyTo?: string } | undefined)?.replyTo, original.id)
+  assert.equal(h.deliverer.calls.at(-1)?.topic, "T#7", "the thread is inherited")
+})
+
+test("reply refuses an id that is not in your inbox", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  assert.match(await h.reply({ messageId: "m404", text: "hi" }), /not in your inbox/)
+})
+
+// ── decline ──────────────────────────────────────────────────────────────────
+
+test("a decline is delivered without demanding an answer", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.send({ to: "ses_peer", text: "fix the tui", kind: "decline" })
+  assert.equal(h.deliverer.calls[0]?.kind, "decline")
+
+  const inbox = await h.inbox({}, "ses_peer")
+  assert.match(inbox, /decline/)
+  assert.doesNotMatch(inbox, /answer with crosstalk_send/)
+})
+
+// ── evidence-bearing briefs ──────────────────────────────────────────────────
+
+test("send carries writeScope, gate and evidence into the recipient's inbox", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  await h.send({
+    to: "ses_peer",
+    text: "T#1 build the reply tool",
+    kind: "request",
+    writeScope: ["src/tools/reply.ts", "test/tools.test.ts"],
+    validation: "npm run check",
+    evidence: "commit hash + gate result",
+  })
+
+  const meta = h.deliverer.calls[0]?.meta as { task?: Record<string, unknown> } | undefined
+  assert.deepEqual(meta?.task?.writeScope, ["src/tools/reply.ts", "test/tools.test.ts"])
+  assert.equal(meta?.task?.validation, "npm run check")
+  assert.equal(meta?.task?.evidence, "commit hash + gate result")
+
+  const inbox = await h.inbox({}, "ses_peer")
+  assert.match(inbox, /brief: files src\/tools\/reply\.ts, test\/tools\.test\.ts/)
+  assert.match(inbox, /gate npm run check/)
+  assert.match(inbox, /evidence commit hash \+ gate result/)
+})
+
+// ── self-check ───────────────────────────────────────────────────────────────
+
+test("status self-check reports scope, permission action and direct/code mode", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  const output = await h.status({})
+  assert.match(output, /self-check:.*scope project/)
+  assert.match(output, /self-check:.*action crosstalk/)
+  assert.match(output, /self-check:.*direct/)
+
+  const code = harness({}, { codemode: true, scope: "server", permission: "coord" })
+  const codeOutput = await code.status({})
+  assert.match(codeOutput, /scope server/)
+  assert.match(codeOutput, /action coord/)
+  assert.match(codeOutput, /code mode/)
+})
+
+test("status warns about a refused duplicate load", async () => {
+  const holder = globalThis as { __crosstalk?: unknown }
+  const previous = holder.__crosstalk
+  holder.__crosstalk = { owners: new Map([["dir-a", Symbol("a")]]), refused: 1 }
+  try {
+    const h = harness()
+    h.mesh.applyEvent(createdEvent("ses_self"))
+    const output = await h.status({})
+    assert.match(output, /duplicate install|twin install/i)
+  } finally {
+    if (previous === undefined) delete holder.__crosstalk
+    else holder.__crosstalk = previous
+  }
+})
+
+// ── crosstalk_continue ───────────────────────────────────────────────────────
+
+test("continue steers an exact session id with a queued delivery", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  const output = await h.continue({ sessionID: "ses_peer", prompt: "resume T#1" })
+  assert.match(output, /signalled 1 session/)
+  assert.equal(h.deliverer.calls[0]?.to, "ses_peer")
+  assert.equal(h.deliverer.calls[0]?.delivery, "queue")
+})
+
+test("continue refuses a session that is not on the channel", async () => {
+  const h = harness()
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  assert.match(await h.continue({ sessionID: "ses_ghost", prompt: "hi" }), /not on this channel/)
+})
+
+// ── loop guard ───────────────────────────────────────────────────────────────
+
+test("loop guard warns on repeated identical sends and blocks the sixth", async () => {
+  const h = harness({}, { loopGuard: true })
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  h.mesh.applyEvent(createdEvent("ses_peer"))
+  const outputs: string[] = []
+  for (let i = 0; i < 6; i += 1) outputs.push(await h.send({ to: "ses_peer", text: "same" }))
+  assert.match(outputs[2] ?? "", /repeated identical/)
+  assert.match(outputs[5] ?? "", /blocked/)
+})
+
+test("loop guard leaves inbox reads unblocked", async () => {
+  const h = harness({}, { loopGuard: true })
+  h.mesh.applyEvent(createdEvent("ses_self"))
+  for (let i = 0; i < 8; i += 1) assert.doesNotMatch(await h.inbox({}), /blocked/)
 })

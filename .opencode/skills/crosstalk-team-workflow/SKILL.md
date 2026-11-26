@@ -22,10 +22,13 @@ Release when you land. Renew if the work outlives the TTL.
 
 ## 2. Stay inside your lane
 
-Your assignment names the files you own. Touching a file outside that
-list is how two sessions rewrite each other's work in the same minute.
-If you discover work that belongs to someone else's file, **report it to
-the coordinator instead of fixing it** — one sentence, file and line.
+Your assignment names the files you own, carried in the brief's `writeScope`
+(see `../brief-format.md`). Touching a file outside that list is how two
+sessions rewrite each other's work in the same minute. If you discover work
+that belongs to someone else's file, **report it to the coordinator instead of
+fixing it** — one sentence, file and line, with `kind: "decline"` if the item is
+outside your lane. When the coordinator sends a specific report, answer with
+`crosstalk_reply { messageId, text }` so the thread stays attached.
 
 ## 3. Land green
 

@@ -20,15 +20,19 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      # No registry-url: setup-node would write an _authToken line into .npmrc
+      # even with no token, and npm then sends that empty/invalid token instead
+      # of doing the OIDC exchange (E401). Public installs need no auth.
+      # No dependency cache in a release build: a poisoned cache can expose the
+      # OIDC token to attacker-controlled install scripts.
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
-          cache: npm
+          node-version: 24
+          package-manager-cache: false
 
-      # Node 22 ships npm 10; `npm stage` and OIDC trusted publishing need 12.
+      # Keep npm 12 for `npm stage`; Node 24 still ships npm 11.
       - name: Upgrade npm
         run: npm install -g npm@12
 
@@ -48,7 +52,7 @@ jobs:
           }
 
       - name: Stage the release
-        run: npm stage publish --access public
+        run: npm stage publish --access public --loglevel=verbose
 
       - name: Where to approve
         if: success()

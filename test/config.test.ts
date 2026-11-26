@@ -36,6 +36,7 @@ test("valid values pass through", () => {
     persist: false,
     storageKey: "mesh/v1",
     announce: false,
+    loopGuard: true,
   })
   assert.deepEqual(warnings, [])
   assert.equal(options.namespace, "mesh")
@@ -47,6 +48,7 @@ test("valid values pass through", () => {
   assert.equal(options.persist, false)
   assert.equal(options.storageKey, "mesh/v1")
   assert.equal(options.announce, false)
+  assert.equal(options.loopGuard, true)
 })
 
 test("unknown keys are reported but not fatal", () => {

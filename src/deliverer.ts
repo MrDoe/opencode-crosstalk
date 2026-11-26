@@ -50,6 +50,8 @@ export function renderDelivery(message: CrosstalkMessage): string {
     lines.push(
       `This is a request: answer with crosstalk_send addressed to ${message.fromName ?? message.from}, then continue your task.`,
     )
+  } else if (message.kind === "decline") {
+    lines.push("This is a decline: no answer is needed; reroute the work instead of resending it unchanged.")
   } else {
     lines.push("Read it with crosstalk_inbox when convenient; reply only if a reply is warranted.")
   }

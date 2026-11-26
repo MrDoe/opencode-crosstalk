@@ -97,6 +97,9 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
         const peers = deps.mesh.peers(selfID)
         const claimsHeld = self.claims.length
         const now = deps.mesh.now()
+        // Diagnostics for the calling location, read once so both the hint and
+        // the self-check line agree about a refused twin install.
+        const health = guardHealth()
         const hints: string[] = []
         // A call without fields declares nothing - it only reads. Say so while
         // the record still has no task-bearing declaration of its own: an
@@ -132,12 +135,20 @@ export function statusTool(deps: ToolDeps): CrosstalkToolInfo {
             `your summary is ${relativeAge(self.declared.summaryAt, now)} old — refresh it: crosstalk_status { summary: … }`,
           )
         }
+        const pending = deps.mesh.pendingInjectionCount(selfID)
+        if (pending > 0) hints.push(`${pending} message injection(s) still pending — they retry on your next crosstalk call`)
+        if (health?.refused !== undefined && health.refused > 0) {
+          hints.push("a duplicate plugin load was refused (twin install) — check ~/.opencode/plugins")
+        }
 
-        // Diagnostics for the calling location, through the store's own key
-        // formula so the line can never name a key state does not live under.
-        const health = guardHealth()
+        // The storage key comes from the store's own formula, so the line can
+        // never name a key state does not live under.
         const selfCheck = {
           snapshot: `v${SNAPSHOT_VERSION}`,
+          scope: deps.options.scope,
+          permission: deps.options.permission,
+          codemode: deps.options.codemode,
+          pending,
           persist: deps.options.persist,
           ...(deps.options.persist ? { storageKey: meshStorageKey(deps.options.storageKey, self.projectID) } : {}),
           ...(health ? { locations: health.locations, refused: health.refused } : {}),

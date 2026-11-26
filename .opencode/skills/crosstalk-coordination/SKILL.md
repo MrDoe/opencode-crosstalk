@@ -44,6 +44,13 @@ Then ack the reporter. Two short messages beat a growing group thread.
 
 ## Assigning work
 
+Use the shared card in `../brief-format.md` and the canonical labels in
+`../roles.md`. Attach `writeScope`, `validation` and `evidence` to the
+assignment so the recipient sees the contract in `crosstalk_inbox`, not just in
+prose. Reply to a report with `crosstalk_reply { messageId, text }` when you need
+to keep the thread; steer an existing peer with `crosstalk_continue` rather than
+spawning a new lane.
+
 An assignment message carries four things:
 
 1. **What** — the item, numbered if there are several.
