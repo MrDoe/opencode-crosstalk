@@ -14,6 +14,7 @@ import { TextAttributes } from "@opentui/core"
 import type { DirectoryEntry, DirectoryPayload } from "../core/directory.ts"
 import { CrosstalkRpc } from "../rpc.ts"
 import { focusPeer, inPlace } from "./focus.ts"
+import { normalizeResource } from "../core/claims.ts"
 import { emoticonFor, entryForPortrait, isSummaryStale, summaryText, titleWithEmoticon, type AvatarEntry } from "./avatar.ts"
 
 const manifestUrl = new URL("../../assets/avatars/manifest.json", import.meta.url)
